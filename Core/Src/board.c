@@ -26,6 +26,8 @@ static BoardStepperAxis s_stepper[BOARD_STEPPER_AXIS_COUNT] = {
 
 static volatile bool s_fault_interrupt_seen = false;
 static volatile uint32_t s_fault_interrupt_count = 0u;
+static volatile bool s_start_switch_interrupt_seen = false;
+static volatile uint32_t s_start_switch_interrupt_count = 0u;
 
 static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV);
 static void Board_StepperSetCurrent_mA(uint32_t current_mA);
@@ -169,6 +171,37 @@ void Board_ClearFaultInterruptStatus(void)
   s_fault_interrupt_count = 0u;
 }
 
+bool Board_StartSwitchInterruptSeen(void)
+{
+  return s_start_switch_interrupt_seen;
+}
+
+uint32_t Board_StartSwitchInterruptCount(void)
+{
+  return s_start_switch_interrupt_count;
+}
+
+void Board_ClearStartSwitchInterruptStatus(void)
+{
+  s_start_switch_interrupt_seen = false;
+  s_start_switch_interrupt_count = 0u;
+}
+
+void Board_WaitForStartSwitchInterrupt(void)
+{
+  while (!Board_StartSwitchInterruptSeen()) {
+    __WFI();
+  }
+}
+
+__weak void Board_StartSwitchInterruptHook(void)
+{
+  /*
+   * Override this function elsewhere if START_SW needs immediate ISR-side work.
+   * The default behavior only releases Board_WaitForStartSwitchInterrupt().
+   */
+}
+
 __weak void Board_FaultInterruptHook(void)
 {
   /*
@@ -179,7 +212,11 @@ __weak void Board_FaultInterruptHook(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == FAULT_Pin) {
+  if (GPIO_Pin == START_SW_Pin) {
+    s_start_switch_interrupt_seen = true;
+    s_start_switch_interrupt_count++;
+    Board_StartSwitchInterruptHook();
+  } else if (GPIO_Pin == FAULT_Pin) {
     s_fault_interrupt_seen = true;
     s_fault_interrupt_count++;
     Board_FaultInterruptHook();

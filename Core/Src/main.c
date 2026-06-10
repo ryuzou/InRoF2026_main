@@ -120,6 +120,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   Board_Init();
   Board_StepperStopAll();
+  Board_ClearStartSwitchInterruptStatus();
+  Board_WaitForStartSwitchInterrupt();
   /* USER CODE END 2 */
 
   /* Infinite loop */

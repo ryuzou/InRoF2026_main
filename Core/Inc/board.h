@@ -38,6 +38,12 @@ bool Board_FaultInterruptSeen(void);
 uint32_t Board_FaultInterruptCount(void);
 void Board_ClearFaultInterruptStatus(void);
 
+bool Board_StartSwitchInterruptSeen(void);
+uint32_t Board_StartSwitchInterruptCount(void);
+void Board_ClearStartSwitchInterruptStatus(void);
+void Board_WaitForStartSwitchInterrupt(void);
+
+void Board_StartSwitchInterruptHook(void);
 void Board_FaultInterruptHook(void);
 
 #endif /* BOARD_H */
