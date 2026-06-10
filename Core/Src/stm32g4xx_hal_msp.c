@@ -411,11 +411,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     __HAL_RCC_GPIOC_CLK_ENABLE();
     /**TIM1 GPIO Configuration
     PC0     ------> TIM1_CH1
-    PC1     ------> TIM1_CH2
     PC2     ------> TIM1_CH3
-    PC3     ------> TIM1_CH4
     */
-    GPIO_InitStruct.Pin = DCMotor1_1_Pin|DCMotor1_2_Pin|DCMotor2_1_Pin|DCMotor2_2_Pin;
+    GPIO_InitStruct.Pin = DCMotorSwing_STEP_Pin|DCMotorRack_STEP_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

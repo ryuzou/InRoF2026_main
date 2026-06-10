@@ -402,15 +402,7 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -511,13 +503,23 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, DIR1_Pin|DIR2_Pin|ENABLE_Pin|RESET_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, DCMotorSwing_DIR_Pin|DCMotorRack_DIR_Pin|DIR1_Pin|DIR2_Pin
+                          |ENABLE_Pin|RESET_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED1_Pin|LED2_Pin|BUZZER_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : DCMotorSwing_DIR_Pin DCMotorRack_DIR_Pin DIR1_Pin DIR2_Pin
+                           ENABLE_Pin RESET_Pin */
+  GPIO_InitStruct.Pin = DCMotorSwing_DIR_Pin|DCMotorRack_DIR_Pin|DIR1_Pin|DIR2_Pin
+                          |ENABLE_Pin|RESET_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LimitSW_1_Pin LimitSW_2_Pin START_SW_Pin USER_SW_Pin
                            LimitSW_3_Pin */
@@ -526,13 +528,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : DIR1_Pin DIR2_Pin ENABLE_Pin RESET_Pin */
-  GPIO_InitStruct.Pin = DIR1_Pin|DIR2_Pin|ENABLE_Pin|RESET_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : FAULT_Pin */
   GPIO_InitStruct.Pin = FAULT_Pin;

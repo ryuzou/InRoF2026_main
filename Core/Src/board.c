@@ -33,7 +33,6 @@ static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV
 static void Board_StepperSetCurrent_mA(uint32_t current_mA);
 static void Board_StepperEnable(bool enable);
 static void Board_StepperResetPulse(void);
-static void Board_DCMotorForceOffForTest(void);
 static void Board_StepperScheduleNext(BoardStepperAxis *axis);
 static uint32_t Board_StepperChannelToFlag(uint32_t channel);
 static bool Board_StepperMotorIsValid(BoardStepperMotor motor);
@@ -42,8 +41,6 @@ void Board_Init(void)
 {
   Board_StepperEnable(false);
   HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_RESET);
-
-  Board_DCMotorForceOffForTest();
 
   if (HAL_DAC_Start(&hdac1, DAC_CHANNEL_1) != HAL_OK) {
     Error_Handler();
@@ -285,32 +282,6 @@ static void Board_StepperResetPulse(void)
   HAL_Delay(1);
   HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_RESET);
   HAL_Delay(1);
-}
-
-static void Board_DCMotorForceOffForTest(void)
-{
-  /*
-   * Keep DC motor inputs Low during this stepper-only calibration.
-   * TIM1 post-init configures PC0-PC3 as AF pins, so force them back to GPIO.
-   */
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0u);
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0u);
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0u);
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, 0u);
-
-  HAL_GPIO_WritePin(
-      GPIOC,
-      DCMotor1_1_Pin | DCMotor1_2_Pin | DCMotor2_1_Pin | DCMotor2_2_Pin,
-      GPIO_PIN_RESET
-  );
-
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  GPIO_InitStruct.Pin = DCMotor1_1_Pin | DCMotor1_2_Pin |
-                        DCMotor2_1_Pin | DCMotor2_2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 }
 
 static void Board_StepperScheduleNext(BoardStepperAxis *axis)

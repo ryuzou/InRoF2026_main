@@ -59,14 +59,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define DCMotor1_1_Pin GPIO_PIN_0
-#define DCMotor1_1_GPIO_Port GPIOC
-#define DCMotor1_2_Pin GPIO_PIN_1
-#define DCMotor1_2_GPIO_Port GPIOC
-#define DCMotor2_1_Pin GPIO_PIN_2
-#define DCMotor2_1_GPIO_Port GPIOC
-#define DCMotor2_2_Pin GPIO_PIN_3
-#define DCMotor2_2_GPIO_Port GPIOC
+#define DCMotorSwing_STEP_Pin GPIO_PIN_0
+#define DCMotorSwing_STEP_GPIO_Port GPIOC
+#define DCMotorSwing_DIR_Pin GPIO_PIN_1
+#define DCMotorSwing_DIR_GPIO_Port GPIOC
+#define DCMotorRack_STEP_Pin GPIO_PIN_2
+#define DCMotorRack_STEP_GPIO_Port GPIOC
+#define DCMotorRack_DIR_Pin GPIO_PIN_3
+#define DCMotorRack_DIR_GPIO_Port GPIOC
 #define VREF1_Pin GPIO_PIN_4
 #define VREF1_GPIO_Port GPIOA
 #define VREF2_Pin GPIO_PIN_5
