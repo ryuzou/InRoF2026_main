@@ -23,7 +23,6 @@
 /* USER CODE BEGIN Includes */
 #include "board.h"
 
-#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,14 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define CALIBRATION_MOTOR              BOARD_STEPPER_RIGHT
-#define CALIBRATION_DIRECTION          BOARD_STEPPER_DIR_REVERSE
 
-#define CALIBRATION_MAX_SPEED_HZ       12000u
-#define CALIBRATION_MIN_SPEED_HZ       1000u
-#define CALIBRATION_SPEED_STEP_HZ      100u
-#define CALIBRATION_SPEED_HOLD_MS      1000u
-#define CALIBRATION_REPEAT_DELAY_MS    0u
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -74,7 +66,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-static void Calibration_RunSelectedStepperCycle(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -120,8 +112,11 @@ int main(void)
   /* USER CODE BEGIN 2 */
   Board_Init();
   Board_StepperStopAll();
+  Board_DCMotorSwingStop();
   Board_ClearStartSwitchInterruptStatus();
   Board_WaitForStartSwitchInterrupt();
+
+  Board_DCMotorSwingLowerUntilLimit();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -131,10 +126,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    Calibration_RunSelectedStepperCycle();
-    if (CALIBRATION_REPEAT_DELAY_MS > 0u) {
-      HAL_Delay(CALIBRATION_REPEAT_DELAY_MS);
-    }
+    // Board_DCMotorSwingRaiseUntilLimit();
+    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_2);
+    HAL_Delay(1000);
+    // Board_DCMotorSwingLowerUntilLimit();
   }
   /* USER CODE END 3 */
 }
@@ -374,9 +369,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 7999;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 3999;
+  htim1.Init.Period = 99;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -521,10 +516,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LimitSW_1_Pin LimitSW_2_Pin START_SW_Pin USER_SW_Pin
-                           LimitSW_3_Pin */
-  GPIO_InitStruct.Pin = LimitSW_1_Pin|LimitSW_2_Pin|START_SW_Pin|USER_SW_Pin
-                          |LimitSW_3_Pin;
+  /*Configure GPIO pins : LimitSW_Swing_Pin LimitSW_Rack_Close_Pin START_SW_Pin USER_SW_Pin
+                           LimitSW_Rack_Open_Pin */
+  GPIO_InitStruct.Pin = LimitSW_Swing_Pin|LimitSW_Rack_Close_Pin|START_SW_Pin|USER_SW_Pin
+                          |LimitSW_Rack_Open_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -568,39 +563,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-static void Calibration_RunSelectedStepperCycle(void)
-{
-  if (CALIBRATION_MAX_SPEED_HZ < CALIBRATION_MIN_SPEED_HZ) {
-    return;
-  }
 
-  if (CALIBRATION_SPEED_STEP_HZ == 0u) {
-    Board_StepperStart(
-        CALIBRATION_MOTOR,
-        CALIBRATION_DIRECTION,
-        CALIBRATION_MAX_SPEED_HZ
-    );
-    HAL_Delay(CALIBRATION_SPEED_HOLD_MS);
-    return;
-  }
-
-  uint32_t speed_hz = CALIBRATION_MAX_SPEED_HZ;
-
-  while (1) {
-    Board_StepperStart(CALIBRATION_MOTOR, CALIBRATION_DIRECTION, speed_hz);
-    HAL_Delay(CALIBRATION_SPEED_HOLD_MS);
-
-    if (speed_hz == CALIBRATION_MIN_SPEED_HZ) {
-      break;
-    }
-
-    if ((speed_hz - CALIBRATION_MIN_SPEED_HZ) <= CALIBRATION_SPEED_STEP_HZ) {
-      speed_hz = CALIBRATION_MIN_SPEED_HZ;
-    } else {
-      speed_hz -= CALIBRATION_SPEED_STEP_HZ;
-    }
-  }
-}
 /* USER CODE END 4 */
 
 /**

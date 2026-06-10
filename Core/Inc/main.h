@@ -59,24 +59,24 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define DCMotorSwing_STEP_Pin GPIO_PIN_0
-#define DCMotorSwing_STEP_GPIO_Port GPIOC
+#define DCMotorSwing_PULSE_Pin GPIO_PIN_0
+#define DCMotorSwing_PULSE_GPIO_Port GPIOC
 #define DCMotorSwing_DIR_Pin GPIO_PIN_1
 #define DCMotorSwing_DIR_GPIO_Port GPIOC
-#define DCMotorRack_STEP_Pin GPIO_PIN_2
-#define DCMotorRack_STEP_GPIO_Port GPIOC
+#define DCMotorRack_PULSE_Pin GPIO_PIN_2
+#define DCMotorRack_PULSE_GPIO_Port GPIOC
 #define DCMotorRack_DIR_Pin GPIO_PIN_3
 #define DCMotorRack_DIR_GPIO_Port GPIOC
 #define VREF1_Pin GPIO_PIN_4
 #define VREF1_GPIO_Port GPIOA
 #define VREF2_Pin GPIO_PIN_5
 #define VREF2_GPIO_Port GPIOA
-#define LimitSW_1_Pin GPIO_PIN_1
-#define LimitSW_1_GPIO_Port GPIOB
-#define LimitSW_1_EXTI_IRQn EXTI1_IRQn
-#define LimitSW_2_Pin GPIO_PIN_2
-#define LimitSW_2_GPIO_Port GPIOB
-#define LimitSW_2_EXTI_IRQn EXTI2_IRQn
+#define LimitSW_Swing_Pin GPIO_PIN_1
+#define LimitSW_Swing_GPIO_Port GPIOB
+#define LimitSW_Swing_EXTI_IRQn EXTI1_IRQn
+#define LimitSW_Rack_Close_Pin GPIO_PIN_2
+#define LimitSW_Rack_Close_GPIO_Port GPIOB
+#define LimitSW_Rack_Close_EXTI_IRQn EXTI2_IRQn
 #define START_SW_Pin GPIO_PIN_10
 #define START_SW_GPIO_Port GPIOB
 #define START_SW_EXTI_IRQn EXTI15_10_IRQn
@@ -98,9 +98,9 @@ void Error_Handler(void);
 #define FAULT_Pin GPIO_PIN_12
 #define FAULT_GPIO_Port GPIOC
 #define FAULT_EXTI_IRQn EXTI15_10_IRQn
-#define LimitSW_3_Pin GPIO_PIN_4
-#define LimitSW_3_GPIO_Port GPIOB
-#define LimitSW_3_EXTI_IRQn EXTI4_IRQn
+#define LimitSW_Rack_Open_Pin GPIO_PIN_4
+#define LimitSW_Rack_Open_GPIO_Port GPIOB
+#define LimitSW_Rack_Open_EXTI_IRQn EXTI4_IRQn
 #define LED1_Pin GPIO_PIN_6
 #define LED1_GPIO_Port GPIOB
 #define LED2_Pin GPIO_PIN_7

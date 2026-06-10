@@ -4,6 +4,15 @@
 #define BOARD_VDDA_MV              3300u
 #define BOARD_STEPPER_CURRENT_MA   1000u
 #define BOARD_STEPPER_AXIS_COUNT   2u
+#define BOARD_DCMOTOR_DUTY_SCALE   1000u
+
+#ifndef BOARD_DCMOTOR_SWING_DIR0_DUTY_PERMILLE
+#define BOARD_DCMOTOR_SWING_DIR0_DUTY_PERMILLE  500u
+#endif
+
+#ifndef BOARD_DCMOTOR_SWING_DIR1_DUTY_PERMILLE
+#define BOARD_DCMOTOR_SWING_DIR1_DUTY_PERMILLE  500u
+#endif
 
 typedef struct {
   TIM_HandleTypeDef *htim;
@@ -26,10 +35,18 @@ static BoardStepperAxis s_stepper[BOARD_STEPPER_AXIS_COUNT] = {
 
 static volatile bool s_fault_interrupt_seen = false;
 static volatile uint32_t s_fault_interrupt_count = 0u;
+static volatile bool s_limit_switch_swing_interrupt_seen = false;
+static volatile uint32_t s_limit_switch_swing_interrupt_count = 0u;
+static volatile uint8_t s_dcmotor_swing_running = 0u;
 static volatile bool s_start_switch_interrupt_seen = false;
 static volatile uint32_t s_start_switch_interrupt_count = 0u;
 
 static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV);
+static uint32_t Board_DCMotorDutyToPulse(TIM_HandleTypeDef *htim, uint32_t duty_permille);
+static bool Board_DCMotorSwingDirectionIsValid(BoardDCMotorSwingDirection direction);
+static uint32_t Board_DCMotorSwingDutyPermille(BoardDCMotorSwingDirection direction);
+static bool Board_LimitSwitchSwingIsPressed(void);
+static void Board_DCMotorSwingWaitForLimitRelease(void);
 static void Board_StepperSetCurrent_mA(uint32_t current_mA);
 static void Board_StepperEnable(bool enable);
 static void Board_StepperResetPulse(void);
@@ -152,6 +169,79 @@ void Board_StepperStopAll(void)
   Board_StepperStop(BOARD_STEPPER_RIGHT);
 }
 
+void Board_DCMotorSwingStart(BoardDCMotorSwingDirection direction)
+{
+  if (!Board_DCMotorSwingDirectionIsValid(direction)) {
+    return;
+  }
+
+  HAL_GPIO_WritePin(
+      DCMotorSwing_DIR_GPIO_Port,
+      DCMotorSwing_DIR_Pin,
+      (direction == BOARD_DCMOTOR_SWING_DIR_0) ? GPIO_PIN_RESET : GPIO_PIN_SET
+  );
+
+  uint32_t pulse = Board_DCMotorDutyToPulse(
+      &htim1,
+      Board_DCMotorSwingDutyPermille(direction)
+  );
+
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pulse);
+
+  if (s_dcmotor_swing_running == 0u) {
+    if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK) {
+      Error_Handler();
+    }
+
+    s_dcmotor_swing_running = 1u;
+  }
+}
+
+void Board_DCMotorSwingStop(void)
+{
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0u);
+  HAL_GPIO_WritePin(
+    DCMotorSwing_DIR_GPIO_Port,
+    DCMotorSwing_DIR_Pin,
+    GPIO_PIN_RESET
+  );
+
+  if (s_dcmotor_swing_running != 0u) {
+    (void)HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+    s_dcmotor_swing_running = 0u;
+  }
+}
+
+void Board_DCMotorSwingMoveUntilLimit(BoardDCMotorSwingDirection direction)
+{
+  if (!Board_DCMotorSwingDirectionIsValid(direction)) {
+    return;
+  }
+
+  bool limit_was_pressed = Board_LimitSwitchSwingIsPressed();
+
+  Board_ClearLimitSwitchSwingInterruptStatus();
+  Board_DCMotorSwingStart(direction);
+
+  if (limit_was_pressed) {
+    Board_DCMotorSwingWaitForLimitRelease();
+    Board_ClearLimitSwitchSwingInterruptStatus();
+  }
+
+  Board_WaitForLimitSwitchSwingInterrupt();
+  Board_DCMotorSwingStop();
+}
+
+void Board_DCMotorSwingRaiseUntilLimit(void)
+{
+  Board_DCMotorSwingMoveUntilLimit(BOARD_DCMOTOR_SWING_RAISE_DIRECTION);
+}
+
+void Board_DCMotorSwingLowerUntilLimit(void)
+{
+  Board_DCMotorSwingMoveUntilLimit(BOARD_DCMOTOR_SWING_LOWER_DIRECTION);
+}
+
 bool Board_FaultInterruptSeen(void)
 {
   return s_fault_interrupt_seen;
@@ -166,6 +256,29 @@ void Board_ClearFaultInterruptStatus(void)
 {
   s_fault_interrupt_seen = false;
   s_fault_interrupt_count = 0u;
+}
+
+bool Board_LimitSwitchSwingInterruptSeen(void)
+{
+  return s_limit_switch_swing_interrupt_seen;
+}
+
+uint32_t Board_LimitSwitchSwingInterruptCount(void)
+{
+  return s_limit_switch_swing_interrupt_count;
+}
+
+void Board_ClearLimitSwitchSwingInterruptStatus(void)
+{
+  s_limit_switch_swing_interrupt_seen = false;
+  s_limit_switch_swing_interrupt_count = 0u;
+}
+
+void Board_WaitForLimitSwitchSwingInterrupt(void)
+{
+  while (!Board_LimitSwitchSwingInterruptSeen()) {
+    __WFI();
+  }
 }
 
 bool Board_StartSwitchInterruptSeen(void)
@@ -191,6 +304,14 @@ void Board_WaitForStartSwitchInterrupt(void)
   }
 }
 
+__weak void Board_LimitSwitchSwingInterruptHook(void)
+{
+  /*
+   * Override this function elsewhere if the swing limit switch needs
+   * immediate ISR-side work.
+   */
+}
+
 __weak void Board_StartSwitchInterruptHook(void)
 {
   /*
@@ -209,7 +330,11 @@ __weak void Board_FaultInterruptHook(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == START_SW_Pin) {
+  if (GPIO_Pin == LimitSW_Swing_Pin) {
+    s_limit_switch_swing_interrupt_seen = true;
+    s_limit_switch_swing_interrupt_count++;
+    Board_LimitSwitchSwingInterruptHook();
+  } else if (GPIO_Pin == START_SW_Pin) {
     s_start_switch_interrupt_seen = true;
     s_start_switch_interrupt_count++;
     Board_StartSwitchInterruptHook();
@@ -247,6 +372,45 @@ static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV
   }
 
   return (uint32_t)(((uint64_t)vref_mV * 4095u + vdda_mV / 2u) / vdda_mV);
+}
+
+static uint32_t Board_DCMotorDutyToPulse(TIM_HandleTypeDef *htim, uint32_t duty_permille)
+{
+  if (duty_permille > BOARD_DCMOTOR_DUTY_SCALE) {
+    duty_permille = BOARD_DCMOTOR_DUTY_SCALE;
+  }
+
+  uint32_t period_ticks = __HAL_TIM_GET_AUTORELOAD(htim) + 1u;
+
+  return (uint32_t)(((uint64_t)period_ticks * duty_permille
+      + BOARD_DCMOTOR_DUTY_SCALE / 2u) / BOARD_DCMOTOR_DUTY_SCALE);
+}
+
+static bool Board_DCMotorSwingDirectionIsValid(BoardDCMotorSwingDirection direction)
+{
+  return (direction == BOARD_DCMOTOR_SWING_DIR_0)
+      || (direction == BOARD_DCMOTOR_SWING_DIR_1);
+}
+
+static uint32_t Board_DCMotorSwingDutyPermille(BoardDCMotorSwingDirection direction)
+{
+  if (direction == BOARD_DCMOTOR_SWING_DIR_0) {
+    return BOARD_DCMOTOR_SWING_DIR0_DUTY_PERMILLE;
+  }
+
+  return BOARD_DCMOTOR_SWING_DIR1_DUTY_PERMILLE;
+}
+
+static bool Board_LimitSwitchSwingIsPressed(void)
+{
+  return HAL_GPIO_ReadPin(LimitSW_Swing_GPIO_Port, LimitSW_Swing_Pin) == GPIO_PIN_RESET;
+}
+
+static void Board_DCMotorSwingWaitForLimitRelease(void)
+{
+  while (Board_LimitSwitchSwingIsPressed()) {
+    HAL_Delay(1);
+  }
 }
 
 static void Board_StepperSetCurrent_mA(uint32_t current_mA)
