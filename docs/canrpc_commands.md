@@ -62,20 +62,42 @@ up to `1000 ms` for both DONE responses. Any failure currently enters
 Existing Sensor command IDs copied from `InRoF2026_Sensors/Core/Inc/sensor_node_can.h`.
 Move these into a shared header later if multiple nodes need to include them.
 
-| Command | ID |
-| --- | ---: |
-| `CMD_TSD_READ` | `0x10` |
-| `CMD_TSD_PUBLISH` | `0x11` |
-| `CMD_COLOR_MEASURE` | `0x20` |
-| `CMD_COLOR_GET_PACKED` | `0x21` |
-| `CMD_POSE_STAGE_X_MM` | `0x30` |
-| `CMD_POSE_STAGE_Y_MM` | `0x31` |
-| `CMD_POSE_STAGE_H_MRAD` | `0x32` |
-| `CMD_POSE_COMMIT` | `0x33` |
-| `CMD_POSE_RESET_ORIGIN` | `0x34` |
-| `CMD_POSE_SET_ANCHOR` | `0x35` |
-| `CMD_OTOS_SELF_TEST` | `0x40` |
-| `CMD_OTOS_CALIB_IMU` | `0x41` |
-| `CMD_OTOS_GET_STATUS` | `0x42` |
-| `CMD_SET_POSE_PUB_PERIOD` | `0x50` |
-| `CMD_GET_NODE_STATUS` | `0x7f` |
+| Command | ID | arg | ret | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `CMD_TSD_READ` | `0x10` | channel `0..2` | distance mm | Reads one TSD channel |
+| `CMD_TSD_PUBLISH` | `0x11` | `0` | seq | Publishes `TOPIC_TSD_ALL`; disabled from default autonomous publishing |
+| `CMD_COLOR_MEASURE` | `0x20` | `SENSOR_COLOR_ARG(atime,gain,flags)` | seq | Starts LED-on color measurement; publishes `TOPIC_COLOR_RAW` when complete |
+| `CMD_POSE_STAGE_X_MM` | `0x30` | x mm | `0` | Stages current-pose x |
+| `CMD_POSE_STAGE_Y_MM` | `0x31` | y mm | `0` | Stages current-pose y |
+| `CMD_POSE_STAGE_H_MRAD` | `0x32` | heading mrad | `0` | Stages current-pose heading |
+| `CMD_POSE_SET_CURRENT` | `0x33` | `0` | `0` | Applies staged x/y/h as the current OTOS pose; `0,0,0` is the origin case |
+| `CMD_POSE_SET_ANCHOR` | `0x35` | anchor id | `0` | Applies a compile-time pose anchor |
+| `CMD_OTOS_SELF_TEST` | `0x40` | `0` | `1` pass, `0` fail | Non-blocking self-test |
+| `CMD_OTOS_CALIB_IMU` | `0x41` | sample count `1..255` | remaining samples | Non-blocking IMU calibration |
+| `CMD_OTOS_GET_STATUS` | `0x42` | `0` | status byte | Reads OTOS status |
+| `CMD_SET_POSE_PUB_PERIOD` | `0x50` | period ms, `0` disables | `0` | Controls `TOPIC_POSE2D` period |
+| `CMD_GET_NODE_STATUS` | `0x7f` | `0` | compact status flags | RPC status read; `TOPIC_NODE_STATUS` is disabled by default |
+
+## Sensor PUB Topics
+
+| Topic | ID | data_len | Publisher | Default |
+| --- | ---: | ---: | --- | --- |
+| `TOPIC_POSE2D` | `0x10` | 19 | Periodic after `CMD_SYSTEM_START` | Enabled |
+| `TOPIC_TSD_ALL` | `0x20` | 12 | Only from `CMD_TSD_PUBLISH` | Disabled |
+| `TOPIC_COLOR_RAW` | `0x30` | 17 | Only when `CMD_COLOR_MEASURE` completes | Command-triggered |
+| `TOPIC_NODE_STATUS` | `0x7f` | 32 | Periodic node status | Disabled |
+
+`TOPIC_POSE2D` payload:
+
+```text
+[0]      seq u8
+[1..4]   t_ms u32
+[5..8]   x_mm i32
+[9..12]  y_mm i32
+[13..16] h_mrad i32
+[17..18] status_flags u16
+```
+
+`TOPIC_COLOR_RAW` is not an autonomous publish. The sensor turns the color LED
+on only for `CMD_COLOR_MEASURE`, waits for integration, turns the LED off, then
+publishes the raw RGBC result once.

@@ -24,6 +24,7 @@
 #include "board.h"
 #include "canrpc.h"
 #include "robot_can.h"
+#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -36,6 +37,20 @@
 /* USER CODE BEGIN PD */
 #define ROBOT_TEST_RACK_LIMIT_HOLD_MS  1000u
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
+#define ROBOT_SENSOR_READ_PERIOD_MS    3000u
+#define ROBOT_SENSOR_PRINT_PERIOD_MS   1000u
+#define ROBOT_SENSOR_CANRPC_TIMEOUT_MS 1000u
+
+#define CMD_TSD_READ             0x10u
+#define CMD_TSD_PUBLISH          0x11u
+#define CMD_COLOR_MEASURE        0x20u
+
+#define TOPIC_POSE2D             0x10u
+#define TOPIC_TSD_ALL            0x20u
+#define TOPIC_COLOR_RAW          0x30u
+
+#define SENSOR_COLOR_ARG(atime, gain, flags) \
+  ((int32_t)((uint32_t)(atime) | ((uint32_t)(gain) << 8) | ((uint32_t)(flags) << 16)))
 
 /* USER CODE END PD */
 
@@ -57,6 +72,46 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
+typedef struct {
+  bool valid;
+  uint8_t seq;
+  uint32_t sensor_t_ms;
+  uint32_t rx_t_ms;
+  int32_t x_mm;
+  int32_t y_mm;
+  int32_t h_mrad;
+  uint16_t status_flags;
+} Robot_Pose2D;
+
+typedef struct {
+  bool valid[3];
+  uint8_t rpc_result[3];
+  uint16_t distance_mm[3];
+  uint8_t pub_seq;
+  uint8_t pub_flags;
+  uint32_t sensor_t_ms;
+  uint32_t rx_t_ms;
+} Robot_Tsd10;
+
+typedef struct {
+  bool valid;
+  uint8_t seq;
+  uint8_t rpc_result;
+  uint32_t sensor_t_ms;
+  uint32_t rx_t_ms;
+  uint16_t clear;
+  uint16_t red;
+  uint16_t green;
+  uint16_t blue;
+  uint8_t atime;
+  uint8_t gain;
+  uint8_t led_on_ms;
+  uint8_t flags;
+} Robot_ColorRaw;
+
+static Robot_Pose2D g_sensor_pose;
+static Robot_Tsd10 g_sensor_tsd;
+static Robot_ColorRaw g_sensor_color;
 
 /* USER CODE END PV */
 
@@ -71,12 +126,25 @@ static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
+static void Robot_InitSensorTestState(void);
+static void Robot_RequestSensorValues(void);
+static void Robot_PrintSensorValues(uint32_t now_ms);
+static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
+static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms);
+static uint16_t Robot_GetU16Le(const uint8_t *p);
+static uint32_t Robot_GetU32Le(const uint8_t *p);
+static int32_t Robot_GetI32Le(const uint8_t *p);
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int _write(int file, char *ptr, int len)
+{
+  (void)file;
+  HAL_UART_Transmit(&hlpuart1,(uint8_t *)ptr,len,10);
+  return len;
+}
 /* USER CODE END 0 */
 
 /**
@@ -120,12 +188,17 @@ int main(void)
   Board_DCMotorSwingStop();
   Board_DCMotorRackStop();
   canrpc_init(NODE_MASTER);
+  Robot_InitSensorTestState();
   if (!canrpc_start(NODE_MASTER)) {
     Error_Handler();
   }
+  canrpc_set_pub_handler(Robot_OnCanrpcPublish);
   Board_ClearStartSwitchInterruptStatus();
   Board_WaitForStartSwitchInterrupt();
   Robot_SendStartCommandToRemoteNodes();
+
+  uint32_t next_sensor_read_ms = HAL_GetTick();
+  uint32_t next_sensor_print_ms = HAL_GetTick() + ROBOT_SENSOR_PRINT_PERIOD_MS;
 
   // Board_DCMotorRackOpenUntilLimit();
   // Board_DCMotorRackCloseUntilLimit();
@@ -139,6 +212,18 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     canrpc_poll();
+
+    uint32_t now_ms = HAL_GetTick();
+    if (Robot_TimeReached(now_ms, next_sensor_read_ms)) {
+      next_sensor_read_ms = now_ms + ROBOT_SENSOR_READ_PERIOD_MS;
+      Robot_RequestSensorValues();
+    }
+
+    now_ms = HAL_GetTick();
+    if (Robot_TimeReached(now_ms, next_sensor_print_ms)) {
+      next_sensor_print_ms = now_ms + ROBOT_SENSOR_PRINT_PERIOD_MS;
+      Robot_PrintSensorValues(now_ms);
+    }
     // Robot_RunRackLimitSwitchTest();
   }
   /* USER CODE END 3 */
@@ -591,6 +676,180 @@ static void Robot_SendStartCommandToRemoteNodes(void)
     (void)servo_result;
     Error_Handler();
   }
+}
+
+static void Robot_InitSensorTestState(void)
+{
+  for (uint8_t i = 0; i < 3u; i++) {
+    g_sensor_tsd.valid[i] = false;
+    g_sensor_tsd.rpc_result[i] = CANRPC_RES_INVALID;
+    g_sensor_tsd.distance_mm[i] = 0u;
+  }
+  g_sensor_color.rpc_result = CANRPC_RES_INVALID;
+}
+
+static void Robot_RequestSensorValues(void)
+{
+  int tsd_handle[3] = {-1, -1, -1};
+  int color_handle = -1;
+  uint32_t wait_mask = 0u;
+
+  for (uint8_t ch = 0; ch < 3u; ch++) {
+    tsd_handle[ch] = canrpc_call(NODE_SENSOR, CMD_TSD_READ, (int32_t)ch);
+    if (tsd_handle[ch] >= 0) {
+      wait_mask |= CANRPC_H(tsd_handle[ch]);
+    } else {
+      g_sensor_tsd.valid[ch] = false;
+      g_sensor_tsd.rpc_result[ch] = CANRPC_RES_BUSY;
+    }
+  }
+
+  color_handle = canrpc_call(NODE_SENSOR, CMD_COLOR_MEASURE, SENSOR_COLOR_ARG(0u, 1u, 0u));
+  if (color_handle >= 0) {
+    wait_mask |= CANRPC_H(color_handle);
+  } else {
+    g_sensor_color.rpc_result = CANRPC_RES_BUSY;
+  }
+
+  if (wait_mask != 0u) {
+    (void)canrpc_wait(wait_mask, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
+  }
+
+  for (uint8_t ch = 0; ch < 3u; ch++) {
+    if (tsd_handle[ch] < 0) {
+      continue;
+    }
+
+    uint8_t result = canrpc_result(tsd_handle[ch]);
+    g_sensor_tsd.rpc_result[ch] = result;
+    g_sensor_tsd.valid[ch] = (result == CANRPC_OK);
+    if (g_sensor_tsd.valid[ch]) {
+      g_sensor_tsd.distance_mm[ch] = (uint16_t)canrpc_ret(tsd_handle[ch]);
+      g_sensor_tsd.rx_t_ms = HAL_GetTick();
+    }
+  }
+
+  if (color_handle >= 0) {
+    g_sensor_color.rpc_result = canrpc_result(color_handle);
+  }
+}
+
+static void Robot_PrintSensorValues(uint32_t now_ms)
+{
+  uint32_t pose_age_ms = g_sensor_pose.valid ? (uint32_t)(now_ms - g_sensor_pose.rx_t_ms) : 0u;
+  uint32_t color_age_ms = g_sensor_color.valid ? (uint32_t)(now_ms - g_sensor_color.rx_t_ms) : 0u;
+
+  printf("pose[%u seq=%u age=%lums st=0x%04x x=%ld y=%ld h=%ld] \r\n"
+         "tsd[0:%u r=0x%02x 1:%u r=0x%02x 2:%u r=0x%02x pubseq=%u fl=0x%02x] \r\n"
+         "color[%u seq=%u age=%lums C=%u R=%u G=%u B=%u at=0x%02x gain=%u led=%ums fl=0x%02x r=0x%02x]\r\n\r\n\r\n",
+         g_sensor_pose.valid ? 1u : 0u,
+         (unsigned int)g_sensor_pose.seq,
+         (unsigned long)pose_age_ms,
+         (unsigned int)g_sensor_pose.status_flags,
+         (long)g_sensor_pose.x_mm,
+         (long)g_sensor_pose.y_mm,
+         (long)g_sensor_pose.h_mrad,
+         (unsigned int)g_sensor_tsd.distance_mm[0],
+         (unsigned int)g_sensor_tsd.rpc_result[0],
+         (unsigned int)g_sensor_tsd.distance_mm[1],
+         (unsigned int)g_sensor_tsd.rpc_result[1],
+         (unsigned int)g_sensor_tsd.distance_mm[2],
+         (unsigned int)g_sensor_tsd.rpc_result[2],
+         (unsigned int)g_sensor_tsd.pub_seq,
+         (unsigned int)g_sensor_tsd.pub_flags,
+         g_sensor_color.valid ? 1u : 0u,
+         (unsigned int)g_sensor_color.seq,
+         (unsigned long)color_age_ms,
+         (unsigned int)g_sensor_color.clear,
+         (unsigned int)g_sensor_color.red,
+         (unsigned int)g_sensor_color.green,
+         (unsigned int)g_sensor_color.blue,
+         (unsigned int)g_sensor_color.atime,
+         (unsigned int)g_sensor_color.gain,
+         (unsigned int)g_sensor_color.led_on_ms,
+         (unsigned int)g_sensor_color.flags,
+         (unsigned int)g_sensor_color.rpc_result);
+}
+
+static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
+{
+  if (node != NODE_SENSOR || data == NULL) {
+    return;
+  }
+
+  switch (topic) {
+  case TOPIC_POSE2D:
+    if (len < 19u) {
+      return;
+    }
+    g_sensor_pose.seq = data[0];
+    g_sensor_pose.sensor_t_ms = Robot_GetU32Le(&data[1]);
+    g_sensor_pose.x_mm = Robot_GetI32Le(&data[5]);
+    g_sensor_pose.y_mm = Robot_GetI32Le(&data[9]);
+    g_sensor_pose.h_mrad = Robot_GetI32Le(&data[13]);
+    g_sensor_pose.status_flags = Robot_GetU16Le(&data[17]);
+    g_sensor_pose.rx_t_ms = HAL_GetTick();
+    g_sensor_pose.valid = true;
+    break;
+
+  case TOPIC_TSD_ALL:
+    if (len < 12u) {
+      return;
+    }
+    g_sensor_tsd.pub_seq = data[0];
+    g_sensor_tsd.sensor_t_ms = Robot_GetU32Le(&data[1]);
+    for (uint8_t i = 0; i < 3u; i++) {
+      g_sensor_tsd.distance_mm[i] = Robot_GetU16Le(&data[5u + (uint8_t)(i * 2u)]);
+      g_sensor_tsd.valid[i] = ((data[11] & (uint8_t)(1u << i)) != 0u);
+    }
+    g_sensor_tsd.pub_flags = data[11];
+    g_sensor_tsd.rx_t_ms = HAL_GetTick();
+    break;
+
+  case TOPIC_COLOR_RAW:
+    if (len < 17u) {
+      return;
+    }
+    g_sensor_color.seq = data[0];
+    g_sensor_color.sensor_t_ms = Robot_GetU32Le(&data[1]);
+    g_sensor_color.clear = Robot_GetU16Le(&data[5]);
+    g_sensor_color.red = Robot_GetU16Le(&data[7]);
+    g_sensor_color.green = Robot_GetU16Le(&data[9]);
+    g_sensor_color.blue = Robot_GetU16Le(&data[11]);
+    g_sensor_color.atime = data[13];
+    g_sensor_color.gain = data[14];
+    g_sensor_color.led_on_ms = data[15];
+    g_sensor_color.flags = data[16];
+    g_sensor_color.rx_t_ms = HAL_GetTick();
+    g_sensor_color.valid = true;
+    break;
+
+  default:
+    break;
+  }
+}
+
+static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms)
+{
+  return (int32_t)(now_ms - deadline_ms) >= 0;
+}
+
+static uint16_t Robot_GetU16Le(const uint8_t *p)
+{
+  return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+static uint32_t Robot_GetU32Le(const uint8_t *p)
+{
+  return (uint32_t)p[0] |
+         ((uint32_t)p[1] << 8) |
+         ((uint32_t)p[2] << 16) |
+         ((uint32_t)p[3] << 24);
+}
+
+static int32_t Robot_GetI32Le(const uint8_t *p)
+{
+  return (int32_t)Robot_GetU32Le(p);
 }
 
 /* USER CODE END 4 */

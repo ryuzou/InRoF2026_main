@@ -35,10 +35,10 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Clamp wheel speed to defined maximum and refactor related experiments and configurations">
-      <change beforePath="$PROJECT_DIR$/Core/Inc/board.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/board.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Src/board.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/board.c" afterDir="false" />
+    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/main.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/canrpc_commands.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/canrpc_commands.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -65,7 +65,7 @@
     </option>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="128" />
+    <option name="cachedIndexableFilesCount" value="132" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug - Debug" />
@@ -81,61 +81,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0" />
-      <entry key="MS500" value="1.0" />
-      <entry key="S2" value="1.0" />
-      <entry key="S5" value="1.0" />
-      <entry key="S10" value="1.000000000000001" />
-      <entry key="S30" value="1.0000586939920806" />
-      <entry key="S60" value="1.034319367457453" />
-      <entry key="M2" value="1.888841570598765" />
-      <entry key="M5" value="7.698815977322461" />
-      <entry key="M10" value="15.392691406900093" />
-      <entry key="M15" value="22.370299538153912" />
-      <entry key="M30" value="43.727421939064264" />
-      <entry key="H1" value="84.78393119116961" />
-      <entry key="H2" value="174.88589878038795" />
-      <entry key="H4" value="326.4226459523663" />
-      <entry key="D1" value="659.0975738272614" />
-      <entry key="W1" value="758.3342047644456" />
+      <entry key="MS100" value="1.0000000000272156" />
+      <entry key="MS500" value="1.01536073875792" />
+      <entry key="S2" value="2.5627414982740824" />
+      <entry key="S5" value="6.535626101761627" />
+      <entry key="S10" value="12.159464934453721" />
+      <entry key="S30" value="26.71272594460172" />
+      <entry key="S60" value="41.238755931630756" />
+      <entry key="M2" value="58.83377260083855" />
+      <entry key="M5" value="78.23535555488274" />
+      <entry key="M10" value="87.24642852165847" />
+      <entry key="M15" value="90.71428121050256" />
+      <entry key="M30" value="97.1075371135873" />
+      <entry key="H1" value="116.12428544920698" />
+      <entry key="H2" value="175.32897754775354" />
+      <entry key="H4" value="313.67226796772866" />
+      <entry key="D1" value="758.2768741432623" />
+      <entry key="W1" value="920.3926207053569" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="5.577584535091555E-5" />
-      <entry key="MS500" value="0.14102276718206394" />
-      <entry key="S2" value="0.6128050111864559" />
-      <entry key="S5" value="0.822108092461588" />
-      <entry key="S10" value="0.9067017659967294" />
-      <entry key="S30" value="0.9678799362436866" />
-      <entry key="S60" value="0.9838088921348935" />
-      <entry key="M2" value="0.9918714090722112" />
-      <entry key="M5" value="0.996740600193682" />
-      <entry key="M10" value="0.9983689871828914" />
-      <entry key="M15" value="0.9989220907908273" />
-      <entry key="M30" value="1.0058027071373508" />
-      <entry key="H1" value="1.2119310969408856" />
-      <entry key="H2" value="2.4857562708265264" />
-      <entry key="H4" value="5.253693071211323" />
-      <entry key="D1" value="12.045198155392516" />
-      <entry key="W1" value="15.178000930273873" />
+      <entry key="MS100" value="3.56E-322" />
+      <entry key="MS500" value="5.131306376989578E-65" />
+      <entry key="S2" value="8.463636182072783E-17" />
+      <entry key="S5" value="3.7241125230934705E-7" />
+      <entry key="S10" value="6.102550715146461E-4" />
+      <entry key="S30" value="0.08482108023577205" />
+      <entry key="S60" value="0.29124058823552035" />
+      <entry key="M2" value="0.5396671087212193" />
+      <entry key="M5" value="0.7813585700373544" />
+      <entry key="M10" value="0.8839449737940623" />
+      <entry key="M15" value="0.9210695579693727" />
+      <entry key="M30" value="0.9641027867274368" />
+      <entry key="H1" value="1.0597078222171832" />
+      <entry key="H2" value="1.6286565084933489" />
+      <entry key="H4" value="3.6583344943127076" />
+      <entry key="D1" value="11.754981192533382" />
+      <entry key="W1" value="15.934365336829911" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.10957572492769606" />
-      <entry key="MS500" value="0.667601922745085" />
-      <entry key="S2" value="1.2929657265342231" />
-      <entry key="S5" value="1.6482402270162297" />
-      <entry key="S10" value="1.809695726712224" />
-      <entry key="S30" value="1.9330850440820575" />
-      <entry key="S60" value="2.00036422305659" />
-      <entry key="M2" value="2.8716686774625004" />
-      <entry key="M5" value="8.691586529709129" />
-      <entry key="M10" value="16.388831726702556" />
-      <entry key="M15" value="23.367633349483718" />
-      <entry key="M30" value="44.732330232341226" />
-      <entry key="H1" value="85.99519294180297" />
-      <entry key="H2" value="177.3706986157148" />
-      <entry key="H4" value="331.6751491134526" />
-      <entry key="D1" value="671.1422765971081" />
-      <entry key="W1" value="773.5121195924414" />
+      <entry key="MS100" value="0.952637998070409" />
+      <entry key="MS500" value="1.0056193200364523" />
+      <entry key="S2" value="2.5580946681043346" />
+      <entry key="S5" value="6.531446038200976" />
+      <entry key="S10" value="12.156190753680974" />
+      <entry key="S30" value="26.787517548089827" />
+      <entry key="S60" value="41.5152994518997" />
+      <entry key="M2" value="59.36025152968373" />
+      <entry key="M5" value="79.00913919429722" />
+      <entry key="M10" value="88.12609346533007" />
+      <entry key="M15" value="91.63237767066406" />
+      <entry key="M30" value="98.07008033837" />
+      <entry key="H1" value="117.18313982947096" />
+      <entry key="H2" value="176.9569672265579" />
+      <entry key="H4" value="317.3297820443112" />
+      <entry key="D1" value="770.0313754937517" />
+      <entry key="W1" value="936.3268959286478" />
     </decayedShown>
   </component>
   <component name="ProjectApplicationVersion">
@@ -218,7 +218,7 @@
       <workItem from="1780843798888" duration="2551000" />
       <workItem from="1780847105060" duration="1392000" />
       <workItem from="1780851928773" duration="28617000" />
-      <workItem from="1781172255216" duration="10761000" />
+      <workItem from="1781172255216" duration="20016000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit">
       <option name="closed" value="true" />
@@ -284,7 +284,23 @@
       <option name="project" value="LOCAL" />
       <updated>1781183868460</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Add rack motor control and limit switch handling">
+      <option name="closed" value="true" />
+      <created>1781187972148</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1781187972148</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration.">
+      <option name="closed" value="true" />
+      <created>1781198253406</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1781198253406</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -318,7 +334,9 @@
     <MESSAGE value="Add user switch interrupt handling and related functionality adjustments" />
     <MESSAGE value="Add robot motion algorithms and wheel speed sweep experiment" />
     <MESSAGE value="Clamp wheel speed to defined maximum and refactor related experiments and configurations" />
-    <option name="LAST_COMMIT_MESSAGE" value="Clamp wheel speed to defined maximum and refactor related experiments and configurations" />
+    <MESSAGE value="Add rack motor control and limit switch handling" />
+    <MESSAGE value="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration." />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
