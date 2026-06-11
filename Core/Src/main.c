@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "algorithm.h"
 #include "board.h"
 
 /* USER CODE END Includes */
@@ -32,6 +33,11 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define ROBOT_TEST_MAX_WHEEL_SPEED_MM_S  500u
+#define ROBOT_TEST_MIN_WHEEL_SPEED_MM_S  10u
+#define ROBOT_TEST_SPEED_STAGES          6u
+#define ROBOT_TEST_STAGE_HOLD_MS         1000u
+#define ROBOT_TEST_STOP_HOLD_MS          500u
 
 /* USER CODE END PD */
 
@@ -66,6 +72,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+static void Robot_RunWheelSpeedSweepExperiment(void);
 
 /* USER CODE END PFP */
 
@@ -126,10 +133,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // Board_DCMotorSwingRaiseUntilLimit();
-    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_2);
+    Robot_RunWheelSpeedSweepExperiment();
     HAL_Delay(1000);
-    // Board_DCMotorSwingLowerUntilLimit();
   }
   /* USER CODE END 3 */
 }
@@ -563,6 +568,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void Robot_RunWheelSpeedSweepExperiment(void)
+{
+  for (uint32_t stage = 0u; stage < ROBOT_TEST_SPEED_STAGES; stage++) {
+    uint32_t speed_mm_s = ROBOT_TEST_MAX_WHEEL_SPEED_MM_S;
+
+    if (ROBOT_TEST_SPEED_STAGES > 1u) {
+      uint32_t speed_range = ROBOT_TEST_MAX_WHEEL_SPEED_MM_S
+          - ROBOT_TEST_MIN_WHEEL_SPEED_MM_S;
+      speed_mm_s -= (speed_range * stage) / (ROBOT_TEST_SPEED_STAGES - 1u);
+    }
+
+    Algorithm_RobotDriveStraight_mm_s((int32_t)speed_mm_s);
+    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_2);
+    HAL_Delay(ROBOT_TEST_STAGE_HOLD_MS);
+  }
+
+  Algorithm_RobotStop();
+  HAL_Delay(ROBOT_TEST_STOP_HOLD_MS);
+}
 
 /* USER CODE END 4 */
 

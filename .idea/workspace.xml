@@ -35,15 +35,10 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Update motor configuration to replace DC motor pins with stepper motor control signals">
+    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Add user switch interrupt handling and related functionality adjustments">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Inc/board.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/board.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Inc/main.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/main.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/board.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/board.c" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/main.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Src/stm32g4xx_hal_msp.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/stm32g4xx_hal_msp.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Src/stm32g4xx_it.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/stm32g4xx_it.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/InRoF2026_main.ioc" beforeDir="false" afterPath="$PROJECT_DIR$/InRoF2026_main.ioc" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -86,61 +81,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="3.3796989365259863E-71" />
-      <entry key="MS500" value="8.049624151566074E-15" />
-      <entry key="S2" value="2.9953246521990967E-4" />
-      <entry key="S5" value="0.038961759701686347" />
-      <entry key="S10" value="0.1997127840719672" />
-      <entry key="S30" value="0.7160170976336816" />
-      <entry key="S60" value="1.1964558367492646" />
-      <entry key="M2" value="2.5323224443858843" />
-      <entry key="M5" value="8.697812337446472" />
-      <entry key="M10" value="15.383611304490577" />
-      <entry key="M15" value="19.73029756829558" />
-      <entry key="M30" value="36.130925667239" />
-      <entry key="H1" value="88.21878668685648" />
-      <entry key="H2" value="182.68630892350407" />
-      <entry key="H4" value="284.0559751661899" />
-      <entry key="D1" value="428.12521499691655" />
-      <entry key="W1" value="463.4330429042694" />
+      <entry key="MS100" value="1.0000004479993578" />
+      <entry key="MS500" value="1.0537379557647564" />
+      <entry key="S2" value="1.6414772187964504" />
+      <entry key="S5" value="3.350659335212678" />
+      <entry key="S10" value="5.415770649229597" />
+      <entry key="S30" value="8.04289883784881" />
+      <entry key="S60" value="8.954311069607144" />
+      <entry key="M2" value="9.459140776783626" />
+      <entry key="M5" value="9.779170737980747" />
+      <entry key="M10" value="9.920120459898566" />
+      <entry key="M15" value="10.483452155823553" />
+      <entry key="M30" value="20.641510128515446" />
+      <entry key="H1" value="66.56446409476607" />
+      <entry key="H2" value="171.7024543181452" />
+      <entry key="H4" value="314.2877653180258" />
+      <entry key="D1" value="563.3749681137648" />
+      <entry key="W1" value="629.7058996939074" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="1.0" />
-      <entry key="MS500" value="1.0" />
-      <entry key="S2" value="1.0" />
-      <entry key="S5" value="1.0000001713916309" />
-      <entry key="S10" value="1.0004139947499529" />
-      <entry key="S30" value="1.0748287580205056" />
-      <entry key="S60" value="1.2902842142106303" />
-      <entry key="M2" value="1.6539578181629082" />
-      <entry key="M5" value="2.215461354137189" />
-      <entry key="M10" value="2.548911293621754" />
-      <entry key="M15" value="2.725917089657487" />
-      <entry key="M30" value="3.3575667391691093" />
-      <entry key="H1" value="4.880797650701188" />
-      <entry key="H2" value="7.1261809929922375" />
-      <entry key="H4" value="9.315536098877175" />
-      <entry key="D1" value="12.586734863393941" />
-      <entry key="W1" value="14.445102890969459" />
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="3.723513728241871E-248" />
+      <entry key="S30" value="3.588643728776313E-83" />
+      <entry key="S60" value="7.45557112193956E-42" />
+      <entry key="M2" value="3.975778639270524E-21" />
+      <entry key="M5" value="1.252631375091694E-8" />
+      <entry key="M10" value="1.9166123175157332E-4" />
+      <entry key="M15" value="0.004856227358174188" />
+      <entry key="M30" value="0.1417156582796438" />
+      <entry key="H1" value="1.002737819414613" />
+      <entry key="H2" value="3.2300195029070458" />
+      <entry key="H4" value="6.2716527056878535" />
+      <entry key="D1" value="11.783530818306408" />
+      <entry key="W1" value="14.309667675275861" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="7.38923370801797E-8" />
-      <entry key="MS500" value="0.03747312230597421" />
-      <entry key="S2" value="0.4401868974338058" />
-      <entry key="S5" value="0.7538615449273912" />
-      <entry key="S10" value="1.0348524895324798" />
-      <entry key="S30" value="1.7141955781759766" />
-      <entry key="S60" value="2.43380991248539" />
-      <entry key="M2" value="4.150018402651031" />
-      <entry key="M5" value="10.893532480696381" />
-      <entry key="M10" value="17.921182330286058" />
-      <entry key="M15" value="22.448110521978435" />
-      <entry key="M30" value="39.4833504294292" />
-      <entry key="H1" value="93.09552874935535" />
-      <entry key="H2" value="189.8092320425112" />
-      <entry key="H4" value="293.3692422321795" />
-      <entry key="D1" value="440.7114186023803" />
-      <entry key="W1" value="477.8780624381687" />
+      <entry key="MS100" value="0.9659367646736373" />
+      <entry key="MS500" value="1.046533289879483" />
+      <entry key="S2" value="1.6388287574010376" />
+      <entry key="S5" value="3.3484697937398895" />
+      <entry key="S10" value="5.413943099518049" />
+      <entry key="S30" value="8.041966772290658" />
+      <entry key="S60" value="8.953787945730925" />
+      <entry key="M2" value="9.458863305517108" />
+      <entry key="M5" value="9.779055714225388" />
+      <entry key="M10" value="9.92025287884773" />
+      <entry key="M15" value="10.488252965189838" />
+      <entry key="M30" value="20.782971769883048" />
+      <entry key="H1" value="67.56632253697792" />
+      <entry key="H2" value="174.93095504700358" />
+      <entry key="H4" value="320.55786134110525" />
+      <entry key="D1" value="575.1579951885342" />
+      <entry key="W1" value="644.0154838363641" />
     </decayedShown>
   </component>
   <component name="ProjectApplicationVersion">
@@ -167,6 +162,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "RunOnceActivity.west.config.association.type.startup.service": "true",
@@ -199,11 +195,6 @@
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true">
-      <method v="2">
-        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="OCD InRoF2026_main" type="com.jetbrains.cidr.embedded.openocd.conf.type" factoryName="com.jetbrains.cidr.embedded.openocd.conf.factory" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="InRoF2026_main" TARGET_NAME="InRoF2026_main.elf" CONFIG_NAME="Debug - Debug" version="1" RUN_TARGET_PROJECT_NAME="InRoF2026_main" RUN_TARGET_NAME="InRoF2026_main.elf">
       <openocd version="1" gdb-port="3333" telnet-port="4444" board-config="Z:\Works\Robots\Software\InRoF2026\InRoF2026_main\stm32G4_TakahashiFDCANBoard.cfg" reset-type="INIT" download-type="UPDATED_ONLY">
         <debugger kind="GDB" isBundled="true" />
@@ -226,7 +217,8 @@
       <updated>1780843797802</updated>
       <workItem from="1780843798888" duration="2551000" />
       <workItem from="1780847105060" duration="1392000" />
-      <workItem from="1780851928773" duration="25999000" />
+      <workItem from="1780851928773" duration="28617000" />
+      <workItem from="1781172255216" duration="4323000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit">
       <option name="closed" value="true" />
@@ -252,7 +244,31 @@
       <option name="project" value="LOCAL" />
       <updated>1781103423458</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Refactor motor control to replace stepper pin definitions with DC motor pulse/direction signals and add swing motor limit switch handling">
+      <option name="closed" value="true" />
+      <created>1781113397002</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1781113397002</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Refactor motor control to replace stepper pin definitions with DC motor pulse/direction signals and add swing motor limit switch handling">
+      <option name="closed" value="true" />
+      <created>1781113639484</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1781113639484</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Add user switch interrupt handling and related functionality adjustments">
+      <option name="closed" value="true" />
+      <created>1781114847235</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1781114847235</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -282,7 +298,9 @@
     <MESSAGE value="initial commit" />
     <MESSAGE value="Add support for start switch interrupt handling" />
     <MESSAGE value="Update motor configuration to replace DC motor pins with stepper motor control signals" />
-    <option name="LAST_COMMIT_MESSAGE" value="Update motor configuration to replace DC motor pins with stepper motor control signals" />
+    <MESSAGE value="Refactor motor control to replace stepper pin definitions with DC motor pulse/direction signals and add swing motor limit switch handling" />
+    <MESSAGE value="Add user switch interrupt handling and related functionality adjustments" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add user switch interrupt handling and related functionality adjustments" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

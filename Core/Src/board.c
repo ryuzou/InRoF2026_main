@@ -2,7 +2,7 @@
 
 #define BOARD_STEPPER_TIM_HZ       1000000u  /* TIM3: 80 MHz / (79 + 1) */
 #define BOARD_VDDA_MV              3300u
-#define BOARD_STEPPER_CURRENT_MA   1000u
+#define BOARD_STEPPER_CURRENT_MA   1200u
 #define BOARD_STEPPER_AXIS_COUNT   2u
 #define BOARD_DCMOTOR_DUTY_SCALE   1000u
 
