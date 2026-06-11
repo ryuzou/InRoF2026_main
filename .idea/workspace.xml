@@ -35,10 +35,11 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation.">
+      <change beforePath="$PROJECT_DIR$/Core/Inc/stm32g4xx_it.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/stm32g4xx_it.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/main.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/canrpc_commands.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/canrpc_commands.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Core/Src/stm32g4xx_it.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/stm32g4xx_it.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/InRoF2026_main.ioc" beforeDir="false" afterPath="$PROJECT_DIR$/InRoF2026_main.ioc" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -81,61 +82,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000000000272156" />
-      <entry key="MS500" value="1.01536073875792" />
-      <entry key="S2" value="2.5627414982740824" />
-      <entry key="S5" value="6.535626101761627" />
-      <entry key="S10" value="12.159464934453721" />
-      <entry key="S30" value="26.71272594460172" />
-      <entry key="S60" value="41.238755931630756" />
-      <entry key="M2" value="58.83377260083855" />
-      <entry key="M5" value="78.23535555488274" />
-      <entry key="M10" value="87.24642852165847" />
-      <entry key="M15" value="90.71428121050256" />
-      <entry key="M30" value="97.1075371135873" />
-      <entry key="H1" value="116.12428544920698" />
-      <entry key="H2" value="175.32897754775354" />
-      <entry key="H4" value="313.67226796772866" />
-      <entry key="D1" value="758.2768741432623" />
-      <entry key="W1" value="920.3926207053569" />
+      <entry key="MS100" value="1.0000000021824267" />
+      <entry key="MS500" value="1.0544936046215652" />
+      <entry key="S2" value="2.7139156808025033" />
+      <entry key="S5" value="4.591424020430028" />
+      <entry key="S10" value="5.6311333831199235" />
+      <entry key="S30" value="6.5007376598321365" />
+      <entry key="S60" value="6.745163010872449" />
+      <entry key="M2" value="7.10050685058403" />
+      <entry key="M5" value="15.460184418679127" />
+      <entry key="M10" value="35.75240471823896" />
+      <entry key="M15" value="50.2893774059946" />
+      <entry key="M30" value="74.08674048024585" />
+      <entry key="H1" value="103.52137920560862" />
+      <entry key="H2" value="166.84822347305627" />
+      <entry key="H4" value="306.50533370596287" />
+      <entry key="D1" value="759.4587713143208" />
+      <entry key="W1" value="926.3804383459466" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="3.56E-322" />
-      <entry key="MS500" value="5.131306376989578E-65" />
-      <entry key="S2" value="8.463636182072783E-17" />
-      <entry key="S5" value="3.7241125230934705E-7" />
-      <entry key="S10" value="6.102550715146461E-4" />
-      <entry key="S30" value="0.08482108023577205" />
-      <entry key="S60" value="0.29124058823552035" />
-      <entry key="M2" value="0.5396671087212193" />
-      <entry key="M5" value="0.7813585700373544" />
-      <entry key="M10" value="0.8839449737940623" />
-      <entry key="M15" value="0.9210695579693727" />
-      <entry key="M30" value="0.9641027867274368" />
-      <entry key="H1" value="1.0597078222171832" />
-      <entry key="H2" value="1.6286565084933489" />
-      <entry key="H4" value="3.6583344943127076" />
-      <entry key="D1" value="11.754981192533382" />
-      <entry key="W1" value="15.934365336829911" />
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="2.652629669856409E-161" />
+      <entry key="S5" value="5.8812636558686115E-65" />
+      <entry key="S10" value="7.66893972845568E-33" />
+      <entry key="S30" value="1.9720220872445524E-11" />
+      <entry key="S60" value="4.440745531151892E-6" />
+      <entry key="M2" value="0.002107307649858438" />
+      <entry key="M5" value="0.0850141422738663" />
+      <entry key="M10" value="0.2915718748966384" />
+      <entry key="M15" value="0.4397164313303405" />
+      <entry key="M30" value="0.666136868518475" />
+      <entry key="H1" value="0.8808586157194079" />
+      <entry key="H2" value="1.4848737590872607" />
+      <entry key="H4" value="3.4931193832236853" />
+      <entry key="D1" value="11.664790449528407" />
+      <entry key="W1" value="15.91684230398312" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.952637998070409" />
-      <entry key="MS500" value="1.0056193200364523" />
-      <entry key="S2" value="2.5580946681043346" />
-      <entry key="S5" value="6.531446038200976" />
-      <entry key="S10" value="12.156190753680974" />
-      <entry key="S30" value="26.787517548089827" />
-      <entry key="S60" value="41.5152994518997" />
-      <entry key="M2" value="59.36025152968373" />
-      <entry key="M5" value="79.00913919429722" />
-      <entry key="M10" value="88.12609346533007" />
-      <entry key="M15" value="91.63237767066406" />
-      <entry key="M30" value="98.07008033837" />
-      <entry key="H1" value="117.18313982947096" />
-      <entry key="H2" value="176.9569672265579" />
-      <entry key="H4" value="317.3297820443112" />
-      <entry key="D1" value="770.0313754937517" />
-      <entry key="W1" value="936.3268959286478" />
+      <entry key="MS100" value="0.9330329936591817" />
+      <entry key="MS500" value="1.0403948301808859" />
+      <entry key="S2" value="2.7076946889289744" />
+      <entry key="S5" value="4.587674325390414" />
+      <entry key="S10" value="5.628903120777458" />
+      <entry key="S30" value="6.49989427582177" />
+      <entry key="S60" value="6.744731459483036" />
+      <entry key="M2" value="7.102341127244256" />
+      <entry key="M5" value="15.544284879472867" />
+      <entry key="M10" value="36.042519908962284" />
+      <entry key="M15" value="50.72764451826026" />
+      <entry key="M30" value="74.75178478415788" />
+      <entry key="H1" value="104.40152091174919" />
+      <entry key="H2" value="168.33248551871137" />
+      <entry key="H4" value="309.99766784557" />
+      <entry key="D1" value="771.1230852905485" />
+      <entry key="W1" value="942.2971905907915" />
     </decayedShown>
   </component>
   <component name="ProjectApplicationVersion">
@@ -218,7 +219,7 @@
       <workItem from="1780843798888" duration="2551000" />
       <workItem from="1780847105060" duration="1392000" />
       <workItem from="1780851928773" duration="28617000" />
-      <workItem from="1781172255216" duration="20016000" />
+      <workItem from="1781172255216" duration="20456000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit">
       <option name="closed" value="true" />
@@ -300,7 +301,15 @@
       <option name="project" value="LOCAL" />
       <updated>1781198253406</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation.">
+      <option name="closed" value="true" />
+      <created>1781202636329</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1781202636329</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -336,7 +345,8 @@
     <MESSAGE value="Clamp wheel speed to defined maximum and refactor related experiments and configurations" />
     <MESSAGE value="Add rack motor control and limit switch handling" />
     <MESSAGE value="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration." />
+    <MESSAGE value="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation." />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
