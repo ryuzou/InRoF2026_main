@@ -36,10 +36,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation.">
-      <change beforePath="$PROJECT_DIR$/Core/Inc/stm32g4xx_it.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/stm32g4xx_it.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Core/Inc/board.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/board.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Core/Src/board.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/board.c" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/main.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Src/stm32g4xx_it.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/stm32g4xx_it.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/InRoF2026_main.ioc" beforeDir="false" afterPath="$PROJECT_DIR$/InRoF2026_main.ioc" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -82,61 +82,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000000021824267" />
-      <entry key="MS500" value="1.0544936046215652" />
-      <entry key="S2" value="2.7139156808025033" />
-      <entry key="S5" value="4.591424020430028" />
-      <entry key="S10" value="5.6311333831199235" />
-      <entry key="S30" value="6.5007376598321365" />
-      <entry key="S60" value="6.745163010872449" />
-      <entry key="M2" value="7.10050685058403" />
-      <entry key="M5" value="15.460184418679127" />
-      <entry key="M10" value="35.75240471823896" />
-      <entry key="M15" value="50.2893774059946" />
-      <entry key="M30" value="74.08674048024585" />
-      <entry key="H1" value="103.52137920560862" />
-      <entry key="H2" value="166.84822347305627" />
-      <entry key="H4" value="306.50533370596287" />
-      <entry key="D1" value="759.4587713143208" />
-      <entry key="W1" value="926.3804383459466" />
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0000000099806519" />
+      <entry key="S2" value="1.028477994574894" />
+      <entry key="S5" value="2.392092971242871" />
+      <entry key="S10" value="6.955155707826956" />
+      <entry key="S30" value="17.57823404116686" />
+      <entry key="S60" value="22.854744442683387" />
+      <entry key="M2" value="27.711793485401664" />
+      <entry key="M5" value="40.231395441304514" />
+      <entry key="M10" value="62.43315914996327" />
+      <entry key="M15" value="81.99670393312849" />
+      <entry key="M30" value="120.78404175527336" />
+      <entry key="H1" value="164.19353389995615" />
+      <entry key="H2" value="235.18451641502926" />
+      <entry key="H4" value="378.23050594949217" />
+      <entry key="D1" value="843.5043255121371" />
+      <entry key="W1" value="1017.0017302852483" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
       <entry key="MS500" value="0.0" />
-      <entry key="S2" value="2.652629669856409E-161" />
-      <entry key="S5" value="5.8812636558686115E-65" />
-      <entry key="S10" value="7.66893972845568E-33" />
-      <entry key="S30" value="1.9720220872445524E-11" />
-      <entry key="S60" value="4.440745531151892E-6" />
-      <entry key="M2" value="0.002107307649858438" />
-      <entry key="M5" value="0.0850141422738663" />
-      <entry key="M10" value="0.2915718748966384" />
-      <entry key="M15" value="0.4397164313303405" />
-      <entry key="M30" value="0.666136868518475" />
-      <entry key="H1" value="0.8808586157194079" />
-      <entry key="H2" value="1.4848737590872607" />
-      <entry key="H4" value="3.4931193832236853" />
-      <entry key="D1" value="11.664790449528407" />
-      <entry key="W1" value="15.91684230398312" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="8.929214603363224E-140" />
+      <entry key="S10" value="2.9881791451255296E-70" />
+      <entry key="S30" value="6.685525405182242E-24" />
+      <entry key="S60" value="2.5856382974388058E-12" />
+      <entry key="M2" value="1.6079920078902098E-6" />
+      <entry key="M5" value="0.004814082785367166" />
+      <entry key="M10" value="0.06938359812631992" />
+      <entry key="M15" value="0.1688548296220207" />
+      <entry key="M30" value="0.4127944667925775" />
+      <entry key="H1" value="0.6934120821534291" />
+      <entry key="H2" value="1.3174439014664325" />
+      <entry key="H4" value="3.290294171544741" />
+      <entry key="D1" value="11.549073837607793" />
+      <entry key="W1" value="15.894189002696281" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9330329936591817" />
-      <entry key="MS500" value="1.0403948301808859" />
-      <entry key="S2" value="2.7076946889289744" />
-      <entry key="S5" value="4.587674325390414" />
-      <entry key="S10" value="5.628903120777458" />
-      <entry key="S30" value="6.49989427582177" />
-      <entry key="S60" value="6.744731459483036" />
-      <entry key="M2" value="7.102341127244256" />
-      <entry key="M5" value="15.544284879472867" />
-      <entry key="M10" value="36.042519908962284" />
-      <entry key="M15" value="50.72764451826026" />
-      <entry key="M30" value="74.75178478415788" />
-      <entry key="H1" value="104.40152091174919" />
-      <entry key="H2" value="168.33248551871137" />
-      <entry key="H4" value="309.99766784557" />
-      <entry key="D1" value="771.1230852905485" />
-      <entry key="W1" value="942.2971905907915" />
+      <entry key="MS100" value="0.9726549474122855" />
+      <entry key="MS500" value="0.9944701785457963" />
+      <entry key="S2" value="1.0270338318425118" />
+      <entry key="S5" value="2.390516612727342" />
+      <entry key="S10" value="6.952737132149976" />
+      <entry key="S30" value="17.576168775954535" />
+      <entry key="S60" value="22.85339694349339" />
+      <entry key="M2" value="27.71095940838896" />
+      <entry key="M5" value="40.235593740298086" />
+      <entry key="M10" value="62.50173664357247" />
+      <entry key="M15" value="82.16462062077552" />
+      <entry key="M30" value="121.19591468762694" />
+      <entry key="H1" value="164.88624186936016" />
+      <entry key="H2" value="236.50134268416824" />
+      <entry key="H4" value="381.5200216834086" />
+      <entry key="D1" value="855.0529209440753" />
+      <entry key="W1" value="1032.895828400821" />
     </decayedShown>
   </component>
   <component name="ProjectApplicationVersion">
@@ -153,38 +153,38 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "CMake アプリケーション.InRoF2026_main.elf.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "OpenOCD をダウンロードして実行.OCD InRoF2026_main.executor": "Run",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.RadMigrateCodeStyle": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "RunOnceActivity.west.config.association.type.startup.service": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "master",
-    "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "Z:/Works/Robots/Software/InRoF2026/InRoF2026_main",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "org.rust.first.attach.projects": "true",
-    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;CMake アプリケーション.InRoF2026_main.elf.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;OpenOCD をダウンロードして実行.OCD InRoF2026_main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.RadMigrateCodeStyle&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.west.config.association.type.startup.service&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;Z:/Works/Robots/Software/InRoF2026/InRoF2026_main&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propVCSSupport.DirectoryMappings&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="Z:\Works\Robots\Software\InRoF2026\InRoF2026_main" />
@@ -219,7 +219,8 @@
       <workItem from="1780843798888" duration="2551000" />
       <workItem from="1780847105060" duration="1392000" />
       <workItem from="1780851928773" duration="28617000" />
-      <workItem from="1781172255216" duration="20456000" />
+      <workItem from="1781172255216" duration="20899000" />
+      <workItem from="1781205378535" duration="2487000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit">
       <option name="closed" value="true" />
@@ -309,7 +310,15 @@
       <option name="project" value="LOCAL" />
       <updated>1781202636329</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation.">
+      <option name="closed" value="true" />
+      <created>1781203214720</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1781203214720</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

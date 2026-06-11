@@ -10,6 +10,9 @@
 #define BOARD_MAX_WHEEL_SPEED_MM_S  500u
 #define BOARD_STEPPER_AXIS_COUNT   2u
 #define BOARD_DCMOTOR_DUTY_SCALE   1000u
+#define BOARD_CANDBG_NODE_SENSOR   0x20u
+#define BOARD_CANDBG_TOPIC_POSE2D  0x10u
+#define BOARD_CANDBG_TOPIC_COLOR   0x30u
 
 #ifndef BOARD_DCMOTOR_SWING_DIR0_DUTY_PERMILLE
 #define BOARD_DCMOTOR_SWING_DIR0_DUTY_PERMILLE  500u
@@ -62,6 +65,16 @@ static volatile uint32_t s_start_switch_interrupt_count = 0u;
 static volatile bool s_user_switch_interrupt_seen = false;
 static volatile uint32_t s_user_switch_interrupt_count = 0u;
 static bool s_canrpc_started = false;
+static volatile uint32_t s_canirq_fifo1_count = 0u;
+static volatile uint32_t s_canirq_sensor_pub_count = 0u;
+static volatile uint32_t s_canirq_color_raw_count = 0u;
+static volatile uint32_t s_canirq_pose2d_count = 0u;
+static volatile uint32_t s_canirq_pub_short_count = 0u;
+static volatile uint32_t s_canirq_last_rx_t_ms = 0u;
+static volatile uint16_t s_canirq_last_id = 0u;
+static volatile uint8_t s_canirq_last_len = 0u;
+static volatile uint8_t s_canirq_last_topic = 0u;
+static volatile uint8_t s_canirq_last_pub_len = 0u;
 
 static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV);
 static uint32_t Board_DCMotorDutyToPulse(TIM_HandleTypeDef *htim, uint32_t duty_permille);
@@ -86,6 +99,7 @@ static void Board_StepperResetPulse(void);
 static void Board_StepperScheduleNext(BoardStepperAxis *axis);
 static uint32_t Board_StepperChannelToFlag(uint32_t channel);
 static bool Board_StepperMotorIsValid(BoardStepperMotor motor);
+static void Board_RecordCanIrqDebug(uint16_t id, const uint8_t *payload, uint8_t len);
 
 void Board_Init(void)
 {
@@ -569,6 +583,24 @@ bool board_canrpc_tx(uint16_t id, const uint8_t *data, uint8_t len)
   return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &header, txbuf) == HAL_OK;
 }
 
+void Board_CanIrqDebugSnapshot(Board_CanIrqDebug *snapshot)
+{
+  if (snapshot == NULL) {
+    return;
+  }
+
+  snapshot->fifo1_count = s_canirq_fifo1_count;
+  snapshot->sensor_pub_count = s_canirq_sensor_pub_count;
+  snapshot->color_raw_count = s_canirq_color_raw_count;
+  snapshot->pose2d_count = s_canirq_pose2d_count;
+  snapshot->pub_short_count = s_canirq_pub_short_count;
+  snapshot->last_rx_t_ms = s_canirq_last_rx_t_ms;
+  snapshot->last_id = s_canirq_last_id;
+  snapshot->last_len = s_canirq_last_len;
+  snapshot->last_topic = s_canirq_last_topic;
+  snapshot->last_pub_len = s_canirq_last_pub_len;
+}
+
 void Board_ClearStartSwitchInterruptStatus(void)
 {
   s_start_switch_interrupt_seen = false;
@@ -711,8 +743,51 @@ void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
 
     uint8_t len = Board_FDCANDlcToLen(header.DataLength);
     if (len <= CANRPC_FRAME_MAX_LEN) {
+      Board_RecordCanIrqDebug((uint16_t)header.Identifier, payload, len);
       canrpc_on_rx((uint16_t)header.Identifier, payload, len);
     }
+  }
+}
+
+static void Board_RecordCanIrqDebug(uint16_t id, const uint8_t *payload, uint8_t len)
+{
+  uint8_t topic = 0u;
+  uint8_t pub_len = 0u;
+
+  if (payload != NULL && len > 0u) {
+    topic = payload[0];
+  }
+#if CANRPC_CANFD
+  if (payload != NULL && len > 1u) {
+    pub_len = payload[1];
+  }
+#else
+  if (payload != NULL && len > 0u) {
+    pub_len = (uint8_t)(len - 1u);
+  }
+#endif
+
+  s_canirq_fifo1_count++;
+  s_canirq_last_id = id;
+  s_canirq_last_len = len;
+  s_canirq_last_topic = topic;
+  s_canirq_last_pub_len = pub_len;
+  s_canirq_last_rx_t_ms = HAL_GetTick();
+
+  if (id != CANRPC_ID(CANRPC_TYPE_PUB, BOARD_CANDBG_NODE_SENSOR)) {
+    return;
+  }
+
+  s_canirq_sensor_pub_count++;
+  if (topic == BOARD_CANDBG_TOPIC_COLOR) {
+    s_canirq_color_raw_count++;
+  } else if (topic == BOARD_CANDBG_TOPIC_POSE2D) {
+    s_canirq_pose2d_count++;
+  }
+
+  if (payload == NULL || len < CANRPC_PUB_HDR_LEN ||
+      ((uint16_t)pub_len + CANRPC_PUB_HDR_LEN) > len) {
+    s_canirq_pub_short_count++;
   }
 }
 

@@ -57,6 +57,21 @@ void board_idle(void);
 bool board_canrpc_start(uint8_t own_addr);
 bool board_canrpc_tx(uint16_t id, const uint8_t *data, uint8_t len);
 
+typedef struct {
+  uint32_t fifo1_count;
+  uint32_t sensor_pub_count;
+  uint32_t color_raw_count;
+  uint32_t pose2d_count;
+  uint32_t pub_short_count;
+  uint32_t last_rx_t_ms;
+  uint16_t last_id;
+  uint8_t last_len;
+  uint8_t last_topic;
+  uint8_t last_pub_len;
+} Board_CanIrqDebug;
+
+void Board_CanIrqDebugSnapshot(Board_CanIrqDebug *snapshot);
+
 uint32_t Board_MaxWheelSpeed_mm_s(void);
 
 void Board_StepperStart(
