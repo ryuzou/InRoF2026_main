@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "board.h"
+#include "canrpc.h"
+#include "robot_can.h"
 
 /* USER CODE END Includes */
 
@@ -33,6 +35,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ROBOT_TEST_RACK_LIMIT_HOLD_MS  1000u
+#define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
 
 /* USER CODE END PD */
 
@@ -67,7 +70,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-static void Robot_RunRackLimitSwitchTest(void);
+static void Robot_SendStartCommandToRemoteNodes(void);
 
 /* USER CODE END PFP */
 
@@ -116,8 +119,13 @@ int main(void)
   Board_StepperStopAll();
   Board_DCMotorSwingStop();
   Board_DCMotorRackStop();
+  canrpc_init(NODE_MASTER);
+  if (!canrpc_start(NODE_MASTER)) {
+    Error_Handler();
+  }
   Board_ClearStartSwitchInterruptStatus();
   Board_WaitForStartSwitchInterrupt();
+  Robot_SendStartCommandToRemoteNodes();
 
   // Board_DCMotorRackOpenUntilLimit();
   // Board_DCMotorRackCloseUntilLimit();
@@ -130,6 +138,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    canrpc_poll();
     // Robot_RunRackLimitSwitchTest();
   }
   /* USER CODE END 3 */
@@ -253,7 +262,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
   hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
-  hfdcan1.Init.AutoRetransmission = DISABLE;
+  hfdcan1.Init.AutoRetransmission = ENABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = ENABLE;
   hfdcan1.Init.NominalPrescaler = 4;
@@ -264,7 +273,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.DataSyncJumpWidth = 1;
   hfdcan1.Init.DataTimeSeg1 = 15;
   hfdcan1.Init.DataTimeSeg2 = 4;
-  hfdcan1.Init.StdFiltersNbr = 1;
+  hfdcan1.Init.StdFiltersNbr = 5;
   hfdcan1.Init.ExtFiltersNbr = 0;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
@@ -564,6 +573,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void Robot_SendStartCommandToRemoteNodes(void)
+{
+  int sensor_handle = canrpc_call(NODE_SENSOR, CMD_SYSTEM_START, 0);
+  int servo_handle = canrpc_call(NODE_SERVO, CMD_SYSTEM_START, 0);
+
+  if ((sensor_handle < 0) || (servo_handle < 0)) {
+    Error_Handler();
+  }
+
+  uint32_t wait_mask = CANRPC_H(sensor_handle) | CANRPC_H(servo_handle);
+  int rc = canrpc_wait(wait_mask, ROBOT_START_CANRPC_TIMEOUT_MS);
+  if (rc != 0) {
+    volatile uint8_t sensor_result = canrpc_result(sensor_handle);
+    volatile uint8_t servo_result = canrpc_result(servo_handle);
+    (void)sensor_result;
+    (void)servo_result;
+    Error_Handler();
+  }
+}
 
 /* USER CODE END 4 */
 

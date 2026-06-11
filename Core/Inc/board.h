@@ -51,6 +51,11 @@ typedef enum {
 #endif
 
 void Board_Init(void);
+uint32_t board_millis(void);
+void board_idle(void);
+
+bool board_canrpc_start(uint8_t own_addr);
+bool board_canrpc_tx(uint16_t id, const uint8_t *data, uint8_t len);
 
 uint32_t Board_MaxWheelSpeed_mm_s(void);
 

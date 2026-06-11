@@ -1,5 +1,9 @@
 #include "board.h"
 
+#include "canrpc.h"
+
+#include <string.h>
+
 #define BOARD_STEPPER_TIM_HZ       1000000u  /* TIM3: 80 MHz / (79 + 1) */
 #define BOARD_VDDA_MV              3300u
 #define BOARD_STEPPER_CURRENT_MA   1300u
@@ -33,6 +37,7 @@ typedef struct {
   volatile uint8_t running;
 } BoardStepperAxis;
 
+extern FDCAN_HandleTypeDef hfdcan1;
 extern DAC_HandleTypeDef hdac1;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim3;
@@ -56,9 +61,12 @@ static volatile bool s_start_switch_interrupt_seen = false;
 static volatile uint32_t s_start_switch_interrupt_count = 0u;
 static volatile bool s_user_switch_interrupt_seen = false;
 static volatile uint32_t s_user_switch_interrupt_count = 0u;
+static bool s_canrpc_started = false;
 
 static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV);
 static uint32_t Board_DCMotorDutyToPulse(TIM_HandleTypeDef *htim, uint32_t duty_permille);
+static uint32_t Board_FDCANLenToDlc(uint8_t len);
+static uint8_t Board_FDCANDlcToLen(uint32_t dlc);
 static bool Board_DCMotorSwingDirectionIsValid(BoardDCMotorSwingDirection direction);
 static uint32_t Board_DCMotorSwingDutyPermille(BoardDCMotorSwingDirection direction);
 static bool Board_DCMotorRackDirectionIsValid(BoardDCMotorRackDirection direction);
@@ -108,6 +116,16 @@ void Board_Init(void)
   Board_ClearFaultInterruptStatus();
   Board_StepperEnable(true);
   HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+}
+
+uint32_t board_millis(void)
+{
+  return HAL_GetTick();
+}
+
+void board_idle(void)
+{
+  __WFI();
 }
 
 uint32_t Board_MaxWheelSpeed_mm_s(void)
@@ -442,6 +460,115 @@ uint32_t Board_StartSwitchInterruptCount(void)
   return s_start_switch_interrupt_count;
 }
 
+bool board_canrpc_start(uint8_t own_addr)
+{
+  if (s_canrpc_started) {
+    return true;
+  }
+
+  FDCAN_FilterTypeDef filter = {
+    .IdType = FDCAN_STANDARD_ID,
+    .FilterType = FDCAN_FILTER_MASK,
+    .FilterConfig = FDCAN_FILTER_TO_RXFIFO0,
+    .FilterID1 = CANRPC_ID(CANRPC_TYPE_ACK, 0),
+    .FilterID2 = 0x700u,
+  };
+
+  filter.FilterIndex = 0;
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
+    return false;
+  }
+
+  filter.FilterIndex = 1;
+  filter.FilterID1 = CANRPC_ID(CANRPC_TYPE_DONE, 0);
+  filter.FilterID2 = 0x700u;
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
+    return false;
+  }
+
+  filter.FilterIndex = 2;
+  filter.FilterID1 = CANRPC_ID(CANRPC_TYPE_CMD, own_addr);
+  filter.FilterID2 = 0x7FFu;
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
+    return false;
+  }
+
+  filter.FilterIndex = 3;
+  filter.FilterConfig = FDCAN_FILTER_TO_RXFIFO1;
+  filter.FilterID1 = CANRPC_ID(CANRPC_TYPE_PUB, 0);
+  filter.FilterID2 = 0x700u;
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &filter) != HAL_OK) {
+    return false;
+  }
+
+  if (HAL_FDCAN_ConfigGlobalFilter(&hfdcan1, FDCAN_REJECT, FDCAN_REJECT,
+                                   FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE) != HAL_OK) {
+    return false;
+  }
+
+  if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1,
+                                     FDCAN_IT_GROUP_RX_FIFO0,
+                                     FDCAN_INTERRUPT_LINE0) != HAL_OK) {
+    return false;
+  }
+
+  if (HAL_FDCAN_ConfigInterruptLines(&hfdcan1,
+                                     FDCAN_IT_GROUP_RX_FIFO1 | FDCAN_IT_GROUP_BIT_LINE_ERROR,
+                                     FDCAN_INTERRUPT_LINE1) != HAL_OK) {
+    return false;
+  }
+
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+    return false;
+  }
+
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO1_NEW_MESSAGE, 0) != HAL_OK) {
+    return false;
+  }
+
+  HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(FDCAN1_IT0_IRQn);
+  HAL_NVIC_SetPriority(FDCAN1_IT1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(FDCAN1_IT1_IRQn);
+
+  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
+    return false;
+  }
+
+  s_canrpc_started = true;
+  return true;
+}
+
+bool board_canrpc_tx(uint16_t id, const uint8_t *data, uint8_t len)
+{
+  if (!s_canrpc_started || len > CANRPC_FRAME_MAX_LEN) {
+    return false;
+  }
+
+  if (HAL_FDCAN_GetTxFifoFreeLevel(&hfdcan1) == 0u) {
+    return false;
+  }
+
+  uint8_t txbuf[CANRPC_FRAME_MAX_LEN] = {0};
+  if (len > 0u && data != NULL) {
+    memcpy(txbuf, data, len);
+  }
+
+  FDCAN_TxHeaderTypeDef header = {
+    .Identifier = id,
+    .IdType = FDCAN_STANDARD_ID,
+    .TxFrameType = FDCAN_DATA_FRAME,
+    .DataLength = Board_FDCANLenToDlc(len),
+    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
+    .BitRateSwitch = FDCAN_BRS_ON,
+    .FDFormat = FDCAN_FD_CAN,
+    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
+    .MessageMarker = 0,
+  };
+
+  return HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &header, txbuf) == HAL_OK;
+}
+
 void Board_ClearStartSwitchInterruptStatus(void)
 {
   s_start_switch_interrupt_seen = false;
@@ -541,6 +668,54 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
 }
 
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
+{
+  if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) == 0u) {
+    return;
+  }
+
+  while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0u) {
+    FDCAN_RxHeaderTypeDef header;
+    uint8_t payload[CANRPC_FRAME_MAX_LEN] = {0};
+    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &header, payload) != HAL_OK) {
+      break;
+    }
+
+    if (header.IdType != FDCAN_STANDARD_ID || header.RxFrameType != FDCAN_DATA_FRAME) {
+      continue;
+    }
+
+    uint8_t len = Board_FDCANDlcToLen(header.DataLength);
+    if (len <= CANRPC_FRAME_MAX_LEN) {
+      canrpc_on_rx((uint16_t)header.Identifier, payload, len);
+    }
+  }
+}
+
+void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
+{
+  if ((RxFifo1ITs & FDCAN_IT_RX_FIFO1_NEW_MESSAGE) == 0u) {
+    return;
+  }
+
+  while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1) > 0u) {
+    FDCAN_RxHeaderTypeDef header;
+    uint8_t payload[CANRPC_FRAME_MAX_LEN] = {0};
+    if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &header, payload) != HAL_OK) {
+      break;
+    }
+
+    if (header.IdType != FDCAN_STANDARD_ID || header.RxFrameType != FDCAN_DATA_FRAME) {
+      continue;
+    }
+
+    uint8_t len = Board_FDCANDlcToLen(header.DataLength);
+    if (len <= CANRPC_FRAME_MAX_LEN) {
+      canrpc_on_rx((uint16_t)header.Identifier, payload, len);
+    }
+  }
+}
+
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance != TIM3) {
@@ -580,6 +755,97 @@ static uint32_t Board_DCMotorDutyToPulse(TIM_HandleTypeDef *htim, uint32_t duty_
 
   return (uint32_t)(((uint64_t)period_ticks * duty_permille
       + BOARD_DCMOTOR_DUTY_SCALE / 2u) / BOARD_DCMOTOR_DUTY_SCALE);
+}
+
+static uint32_t Board_FDCANLenToDlc(uint8_t len)
+{
+  if (len == 0u) {
+    return FDCAN_DLC_BYTES_0;
+  }
+  if (len <= 1u) {
+    return FDCAN_DLC_BYTES_1;
+  }
+  if (len <= 2u) {
+    return FDCAN_DLC_BYTES_2;
+  }
+  if (len <= 3u) {
+    return FDCAN_DLC_BYTES_3;
+  }
+  if (len <= 4u) {
+    return FDCAN_DLC_BYTES_4;
+  }
+  if (len <= 5u) {
+    return FDCAN_DLC_BYTES_5;
+  }
+  if (len <= 6u) {
+    return FDCAN_DLC_BYTES_6;
+  }
+  if (len <= 7u) {
+    return FDCAN_DLC_BYTES_7;
+  }
+  if (len <= 8u) {
+    return FDCAN_DLC_BYTES_8;
+  }
+  if (len <= 12u) {
+    return FDCAN_DLC_BYTES_12;
+  }
+  if (len <= 16u) {
+    return FDCAN_DLC_BYTES_16;
+  }
+  if (len <= 20u) {
+    return FDCAN_DLC_BYTES_20;
+  }
+  if (len <= 24u) {
+    return FDCAN_DLC_BYTES_24;
+  }
+  if (len <= 32u) {
+    return FDCAN_DLC_BYTES_32;
+  }
+  if (len <= 48u) {
+    return FDCAN_DLC_BYTES_48;
+  }
+
+  return FDCAN_DLC_BYTES_64;
+}
+
+static uint8_t Board_FDCANDlcToLen(uint32_t dlc)
+{
+  switch (dlc) {
+    case FDCAN_DLC_BYTES_0:
+      return 0u;
+    case FDCAN_DLC_BYTES_1:
+      return 1u;
+    case FDCAN_DLC_BYTES_2:
+      return 2u;
+    case FDCAN_DLC_BYTES_3:
+      return 3u;
+    case FDCAN_DLC_BYTES_4:
+      return 4u;
+    case FDCAN_DLC_BYTES_5:
+      return 5u;
+    case FDCAN_DLC_BYTES_6:
+      return 6u;
+    case FDCAN_DLC_BYTES_7:
+      return 7u;
+    case FDCAN_DLC_BYTES_8:
+      return 8u;
+    case FDCAN_DLC_BYTES_12:
+      return 12u;
+    case FDCAN_DLC_BYTES_16:
+      return 16u;
+    case FDCAN_DLC_BYTES_20:
+      return 20u;
+    case FDCAN_DLC_BYTES_24:
+      return 24u;
+    case FDCAN_DLC_BYTES_32:
+      return 32u;
+    case FDCAN_DLC_BYTES_48:
+      return 48u;
+    case FDCAN_DLC_BYTES_64:
+      return 64u;
+    default:
+      return 0u;
+  }
 }
 
 static bool Board_DCMotorSwingDirectionIsValid(BoardDCMotorSwingDirection direction)
