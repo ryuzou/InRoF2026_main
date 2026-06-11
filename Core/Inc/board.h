@@ -29,12 +29,25 @@ typedef enum {
   BOARD_DCMOTOR_SWING_DIR_1 = 1
 } BoardDCMotorSwingDirection;
 
+typedef enum {
+  BOARD_DCMOTOR_RACK_DIR_0 = 0,
+  BOARD_DCMOTOR_RACK_DIR_1 = 1
+} BoardDCMotorRackDirection;
+
 #ifndef BOARD_DCMOTOR_SWING_RAISE_DIRECTION
 #define BOARD_DCMOTOR_SWING_RAISE_DIRECTION  BOARD_DCMOTOR_SWING_DIR_1
 #endif
 
 #ifndef BOARD_DCMOTOR_SWING_LOWER_DIRECTION
 #define BOARD_DCMOTOR_SWING_LOWER_DIRECTION  BOARD_DCMOTOR_SWING_DIR_0
+#endif
+
+#ifndef BOARD_DCMOTOR_RACK_OPEN_DIRECTION
+#define BOARD_DCMOTOR_RACK_OPEN_DIRECTION  BOARD_DCMOTOR_RACK_DIR_0
+#endif
+
+#ifndef BOARD_DCMOTOR_RACK_CLOSE_DIRECTION
+#define BOARD_DCMOTOR_RACK_CLOSE_DIRECTION  BOARD_DCMOTOR_RACK_DIR_1
 #endif
 
 void Board_Init(void);
@@ -55,6 +68,11 @@ void Board_DCMotorSwingMoveUntilLimit(BoardDCMotorSwingDirection direction);
 void Board_DCMotorSwingRaiseUntilLimit(void);
 void Board_DCMotorSwingLowerUntilLimit(void);
 
+void Board_DCMotorRackStart(BoardDCMotorRackDirection direction);
+void Board_DCMotorRackStop(void);
+void Board_DCMotorRackOpenUntilLimit(void);
+void Board_DCMotorRackCloseUntilLimit(void);
+
 bool Board_FaultInterruptSeen(void);
 uint32_t Board_FaultInterruptCount(void);
 void Board_ClearFaultInterruptStatus(void);
@@ -64,12 +82,24 @@ uint32_t Board_LimitSwitchSwingInterruptCount(void);
 void Board_ClearLimitSwitchSwingInterruptStatus(void);
 void Board_WaitForLimitSwitchSwingInterrupt(void);
 
+bool Board_LimitSwitchRackOpenInterruptSeen(void);
+uint32_t Board_LimitSwitchRackOpenInterruptCount(void);
+void Board_ClearLimitSwitchRackOpenInterruptStatus(void);
+void Board_WaitForLimitSwitchRackOpenInterrupt(void);
+
+bool Board_LimitSwitchRackCloseInterruptSeen(void);
+uint32_t Board_LimitSwitchRackCloseInterruptCount(void);
+void Board_ClearLimitSwitchRackCloseInterruptStatus(void);
+void Board_WaitForLimitSwitchRackCloseInterrupt(void);
+
 bool Board_StartSwitchInterruptSeen(void);
 uint32_t Board_StartSwitchInterruptCount(void);
 void Board_ClearStartSwitchInterruptStatus(void);
 void Board_WaitForStartSwitchInterrupt(void);
 
 void Board_LimitSwitchSwingInterruptHook(void);
+void Board_LimitSwitchRackOpenInterruptHook(void);
+void Board_LimitSwitchRackCloseInterruptHook(void);
 void Board_StartSwitchInterruptHook(void);
 void Board_FaultInterruptHook(void);
 

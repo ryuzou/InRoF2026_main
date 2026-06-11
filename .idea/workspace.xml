@@ -35,8 +35,8 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Add user switch interrupt handling and related functionality adjustments">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="Clamp wheel speed to defined maximum and refactor related experiments and configurations">
+      <change beforePath="$PROJECT_DIR$/Core/Inc/board.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/board.h" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/board.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/board.c" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Core/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/main.c" afterDir="false" />
     </list>
@@ -65,7 +65,7 @@
     </option>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="126" />
+    <option name="cachedIndexableFilesCount" value="128" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug - Debug" />
@@ -81,61 +81,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000004479993578" />
-      <entry key="MS500" value="1.0537379557647564" />
-      <entry key="S2" value="1.6414772187964504" />
-      <entry key="S5" value="3.350659335212678" />
-      <entry key="S10" value="5.415770649229597" />
-      <entry key="S30" value="8.04289883784881" />
-      <entry key="S60" value="8.954311069607144" />
-      <entry key="M2" value="9.459140776783626" />
-      <entry key="M5" value="9.779170737980747" />
-      <entry key="M10" value="9.920120459898566" />
-      <entry key="M15" value="10.483452155823553" />
-      <entry key="M30" value="20.641510128515446" />
-      <entry key="H1" value="66.56446409476607" />
-      <entry key="H2" value="171.7024543181452" />
-      <entry key="H4" value="314.2877653180258" />
-      <entry key="D1" value="563.3749681137648" />
-      <entry key="W1" value="629.7058996939074" />
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0" />
+      <entry key="S5" value="1.0" />
+      <entry key="S10" value="1.000000000000001" />
+      <entry key="S30" value="1.0000586939920806" />
+      <entry key="S60" value="1.034319367457453" />
+      <entry key="M2" value="1.888841570598765" />
+      <entry key="M5" value="7.698815977322461" />
+      <entry key="M10" value="15.392691406900093" />
+      <entry key="M15" value="22.370299538153912" />
+      <entry key="M30" value="43.727421939064264" />
+      <entry key="H1" value="84.78393119116961" />
+      <entry key="H2" value="174.88589878038795" />
+      <entry key="H4" value="326.4226459523663" />
+      <entry key="D1" value="659.0975738272614" />
+      <entry key="W1" value="758.3342047644456" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="0.0" />
-      <entry key="S2" value="0.0" />
-      <entry key="S5" value="0.0" />
-      <entry key="S10" value="3.723513728241871E-248" />
-      <entry key="S30" value="3.588643728776313E-83" />
-      <entry key="S60" value="7.45557112193956E-42" />
-      <entry key="M2" value="3.975778639270524E-21" />
-      <entry key="M5" value="1.252631375091694E-8" />
-      <entry key="M10" value="1.9166123175157332E-4" />
-      <entry key="M15" value="0.004856227358174188" />
-      <entry key="M30" value="0.1417156582796438" />
-      <entry key="H1" value="1.002737819414613" />
-      <entry key="H2" value="3.2300195029070458" />
-      <entry key="H4" value="6.2716527056878535" />
-      <entry key="D1" value="11.783530818306408" />
-      <entry key="W1" value="14.309667675275861" />
+      <entry key="MS100" value="5.577584535091555E-5" />
+      <entry key="MS500" value="0.14102276718206394" />
+      <entry key="S2" value="0.6128050111864559" />
+      <entry key="S5" value="0.822108092461588" />
+      <entry key="S10" value="0.9067017659967294" />
+      <entry key="S30" value="0.9678799362436866" />
+      <entry key="S60" value="0.9838088921348935" />
+      <entry key="M2" value="0.9918714090722112" />
+      <entry key="M5" value="0.996740600193682" />
+      <entry key="M10" value="0.9983689871828914" />
+      <entry key="M15" value="0.9989220907908273" />
+      <entry key="M30" value="1.0058027071373508" />
+      <entry key="H1" value="1.2119310969408856" />
+      <entry key="H2" value="2.4857562708265264" />
+      <entry key="H4" value="5.253693071211323" />
+      <entry key="D1" value="12.045198155392516" />
+      <entry key="W1" value="15.178000930273873" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9659367646736373" />
-      <entry key="MS500" value="1.046533289879483" />
-      <entry key="S2" value="1.6388287574010376" />
-      <entry key="S5" value="3.3484697937398895" />
-      <entry key="S10" value="5.413943099518049" />
-      <entry key="S30" value="8.041966772290658" />
-      <entry key="S60" value="8.953787945730925" />
-      <entry key="M2" value="9.458863305517108" />
-      <entry key="M5" value="9.779055714225388" />
-      <entry key="M10" value="9.92025287884773" />
-      <entry key="M15" value="10.488252965189838" />
-      <entry key="M30" value="20.782971769883048" />
-      <entry key="H1" value="67.56632253697792" />
-      <entry key="H2" value="174.93095504700358" />
-      <entry key="H4" value="320.55786134110525" />
-      <entry key="D1" value="575.1579951885342" />
-      <entry key="W1" value="644.0154838363641" />
+      <entry key="MS100" value="0.10957572492769606" />
+      <entry key="MS500" value="0.667601922745085" />
+      <entry key="S2" value="1.2929657265342231" />
+      <entry key="S5" value="1.6482402270162297" />
+      <entry key="S10" value="1.809695726712224" />
+      <entry key="S30" value="1.9330850440820575" />
+      <entry key="S60" value="2.00036422305659" />
+      <entry key="M2" value="2.8716686774625004" />
+      <entry key="M5" value="8.691586529709129" />
+      <entry key="M10" value="16.388831726702556" />
+      <entry key="M15" value="23.367633349483718" />
+      <entry key="M30" value="44.732330232341226" />
+      <entry key="H1" value="85.99519294180297" />
+      <entry key="H2" value="177.3706986157148" />
+      <entry key="H4" value="331.6751491134526" />
+      <entry key="D1" value="671.1422765971081" />
+      <entry key="W1" value="773.5121195924414" />
     </decayedShown>
   </component>
   <component name="ProjectApplicationVersion">
@@ -218,7 +218,7 @@
       <workItem from="1780843798888" duration="2551000" />
       <workItem from="1780847105060" duration="1392000" />
       <workItem from="1780851928773" duration="28617000" />
-      <workItem from="1781172255216" duration="4323000" />
+      <workItem from="1781172255216" duration="10761000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit">
       <option name="closed" value="true" />
@@ -268,7 +268,23 @@
       <option name="project" value="LOCAL" />
       <updated>1781114847235</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Add robot motion algorithms and wheel speed sweep experiment">
+      <option name="closed" value="true" />
+      <created>1781180278750</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1781180278750</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Clamp wheel speed to defined maximum and refactor related experiments and configurations">
+      <option name="closed" value="true" />
+      <created>1781183868460</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1781183868460</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -300,7 +316,9 @@
     <MESSAGE value="Update motor configuration to replace DC motor pins with stepper motor control signals" />
     <MESSAGE value="Refactor motor control to replace stepper pin definitions with DC motor pulse/direction signals and add swing motor limit switch handling" />
     <MESSAGE value="Add user switch interrupt handling and related functionality adjustments" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add user switch interrupt handling and related functionality adjustments" />
+    <MESSAGE value="Add robot motion algorithms and wheel speed sweep experiment" />
+    <MESSAGE value="Clamp wheel speed to defined maximum and refactor related experiments and configurations" />
+    <option name="LAST_COMMIT_MESSAGE" value="Clamp wheel speed to defined maximum and refactor related experiments and configurations" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

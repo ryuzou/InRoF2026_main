@@ -15,6 +15,14 @@
 #define BOARD_DCMOTOR_SWING_DIR1_DUTY_PERMILLE  500u
 #endif
 
+#ifndef BOARD_DCMOTOR_RACK_DIR0_DUTY_PERMILLE
+#define BOARD_DCMOTOR_RACK_DIR0_DUTY_PERMILLE  500u
+#endif
+
+#ifndef BOARD_DCMOTOR_RACK_DIR1_DUTY_PERMILLE
+#define BOARD_DCMOTOR_RACK_DIR1_DUTY_PERMILLE  500u
+#endif
+
 typedef struct {
   TIM_HandleTypeDef *htim;
   uint32_t channel;
@@ -38,7 +46,12 @@ static volatile bool s_fault_interrupt_seen = false;
 static volatile uint32_t s_fault_interrupt_count = 0u;
 static volatile bool s_limit_switch_swing_interrupt_seen = false;
 static volatile uint32_t s_limit_switch_swing_interrupt_count = 0u;
+static volatile bool s_limit_switch_rack_open_interrupt_seen = false;
+static volatile uint32_t s_limit_switch_rack_open_interrupt_count = 0u;
+static volatile bool s_limit_switch_rack_close_interrupt_seen = false;
+static volatile uint32_t s_limit_switch_rack_close_interrupt_count = 0u;
 static volatile uint8_t s_dcmotor_swing_running = 0u;
+static volatile uint8_t s_dcmotor_rack_running = 0u;
 static volatile bool s_start_switch_interrupt_seen = false;
 static volatile uint32_t s_start_switch_interrupt_count = 0u;
 static volatile bool s_user_switch_interrupt_seen = false;
@@ -48,11 +61,17 @@ static uint32_t TB67_DacCodeFromCurrent_mA(uint32_t current_mA, uint32_t vdda_mV
 static uint32_t Board_DCMotorDutyToPulse(TIM_HandleTypeDef *htim, uint32_t duty_permille);
 static bool Board_DCMotorSwingDirectionIsValid(BoardDCMotorSwingDirection direction);
 static uint32_t Board_DCMotorSwingDutyPermille(BoardDCMotorSwingDirection direction);
+static bool Board_DCMotorRackDirectionIsValid(BoardDCMotorRackDirection direction);
+static uint32_t Board_DCMotorRackDutyPermille(BoardDCMotorRackDirection direction);
 static bool Board_LimitSwitchSwingIsPressed(void);
+static bool Board_LimitSwitchRackOpenIsPressed(void);
+static bool Board_LimitSwitchRackCloseIsPressed(void);
 static bool Board_UserSwitchIsPressed(void);
 static void Board_ClearUserSwitchInterruptStatus(void);
 static void Board_UpdateSwingLimitLed(void);
 static void Board_DCMotorSwingWaitForLimitRelease(void);
+static void Board_DCMotorRackWaitForOpenLimitRelease(void);
+static void Board_DCMotorRackWaitForCloseLimitRelease(void);
 static void Board_StepperSetCurrent_mA(uint32_t current_mA);
 static void Board_StepperEnable(bool enable);
 static void Board_StepperResetPulse(void);
@@ -253,6 +272,81 @@ void Board_DCMotorSwingLowerUntilLimit(void)
   Board_DCMotorSwingMoveUntilLimit(BOARD_DCMOTOR_SWING_LOWER_DIRECTION);
 }
 
+void Board_DCMotorRackStart(BoardDCMotorRackDirection direction)
+{
+  if (!Board_DCMotorRackDirectionIsValid(direction)) {
+    return;
+  }
+
+  HAL_GPIO_WritePin(
+      DCMotorRack_DIR_GPIO_Port,
+      DCMotorRack_DIR_Pin,
+      (direction == BOARD_DCMOTOR_RACK_DIR_0) ? GPIO_PIN_RESET : GPIO_PIN_SET
+  );
+
+  uint32_t pulse = Board_DCMotorDutyToPulse(
+      &htim1,
+      Board_DCMotorRackDutyPermille(direction)
+  );
+
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, pulse);
+
+  if (s_dcmotor_rack_running == 0u) {
+    if (HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3) != HAL_OK) {
+      Error_Handler();
+    }
+
+    s_dcmotor_rack_running = 1u;
+  }
+}
+
+void Board_DCMotorRackStop(void)
+{
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, 0u);
+  HAL_GPIO_WritePin(
+    DCMotorRack_DIR_GPIO_Port,
+    DCMotorRack_DIR_Pin,
+    GPIO_PIN_RESET
+  );
+
+  if (s_dcmotor_rack_running != 0u) {
+    (void)HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+    s_dcmotor_rack_running = 0u;
+  }
+}
+
+void Board_DCMotorRackOpenUntilLimit(void)
+{
+  bool limit_was_pressed = Board_LimitSwitchRackOpenIsPressed();
+
+  Board_ClearLimitSwitchRackOpenInterruptStatus();
+  Board_DCMotorRackStart(BOARD_DCMOTOR_RACK_OPEN_DIRECTION);
+
+  if (limit_was_pressed) {
+    Board_DCMotorRackWaitForOpenLimitRelease();
+    Board_ClearLimitSwitchRackOpenInterruptStatus();
+  }
+
+  Board_WaitForLimitSwitchRackOpenInterrupt();
+  Board_DCMotorRackStop();
+}
+
+void Board_DCMotorRackCloseUntilLimit(void)
+{
+  bool limit_was_pressed = Board_LimitSwitchRackCloseIsPressed();
+
+  Board_ClearLimitSwitchRackCloseInterruptStatus();
+  Board_DCMotorRackStart(BOARD_DCMOTOR_RACK_CLOSE_DIRECTION);
+
+  if (limit_was_pressed) {
+    Board_DCMotorRackWaitForCloseLimitRelease();
+    Board_ClearLimitSwitchRackCloseInterruptStatus();
+  }
+
+  Board_WaitForLimitSwitchRackCloseInterrupt();
+  Board_DCMotorRackStop();
+}
+
 bool Board_FaultInterruptSeen(void)
 {
   return s_fault_interrupt_seen;
@@ -288,6 +382,52 @@ void Board_ClearLimitSwitchSwingInterruptStatus(void)
 void Board_WaitForLimitSwitchSwingInterrupt(void)
 {
   while (!Board_LimitSwitchSwingInterruptSeen()) {
+    __WFI();
+  }
+}
+
+bool Board_LimitSwitchRackOpenInterruptSeen(void)
+{
+  return s_limit_switch_rack_open_interrupt_seen;
+}
+
+uint32_t Board_LimitSwitchRackOpenInterruptCount(void)
+{
+  return s_limit_switch_rack_open_interrupt_count;
+}
+
+void Board_ClearLimitSwitchRackOpenInterruptStatus(void)
+{
+  s_limit_switch_rack_open_interrupt_seen = false;
+  s_limit_switch_rack_open_interrupt_count = 0u;
+}
+
+void Board_WaitForLimitSwitchRackOpenInterrupt(void)
+{
+  while (!Board_LimitSwitchRackOpenInterruptSeen()) {
+    __WFI();
+  }
+}
+
+bool Board_LimitSwitchRackCloseInterruptSeen(void)
+{
+  return s_limit_switch_rack_close_interrupt_seen;
+}
+
+uint32_t Board_LimitSwitchRackCloseInterruptCount(void)
+{
+  return s_limit_switch_rack_close_interrupt_count;
+}
+
+void Board_ClearLimitSwitchRackCloseInterruptStatus(void)
+{
+  s_limit_switch_rack_close_interrupt_seen = false;
+  s_limit_switch_rack_close_interrupt_count = 0u;
+}
+
+void Board_WaitForLimitSwitchRackCloseInterrupt(void)
+{
+  while (!Board_LimitSwitchRackCloseInterruptSeen()) {
     __WFI();
   }
 }
@@ -341,6 +481,22 @@ __weak void Board_LimitSwitchSwingInterruptHook(void)
    */
 }
 
+__weak void Board_LimitSwitchRackOpenInterruptHook(void)
+{
+  /*
+   * Override this function elsewhere if the rack open limit switch needs
+   * immediate ISR-side work.
+   */
+}
+
+__weak void Board_LimitSwitchRackCloseInterruptHook(void)
+{
+  /*
+   * Override this function elsewhere if the rack close limit switch needs
+   * immediate ISR-side work.
+   */
+}
+
 __weak void Board_StartSwitchInterruptHook(void)
 {
   /*
@@ -363,6 +519,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     s_limit_switch_swing_interrupt_seen = true;
     s_limit_switch_swing_interrupt_count++;
     Board_LimitSwitchSwingInterruptHook();
+  } else if (GPIO_Pin == LimitSW_Rack_Open_Pin) {
+    s_limit_switch_rack_open_interrupt_seen = true;
+    s_limit_switch_rack_open_interrupt_count++;
+    Board_LimitSwitchRackOpenInterruptHook();
+  } else if (GPIO_Pin == LimitSW_Rack_Close_Pin) {
+    s_limit_switch_rack_close_interrupt_seen = true;
+    s_limit_switch_rack_close_interrupt_count++;
+    Board_LimitSwitchRackCloseInterruptHook();
   } else if (GPIO_Pin == START_SW_Pin) {
     s_start_switch_interrupt_seen = true;
     s_start_switch_interrupt_count++;
@@ -433,9 +597,36 @@ static uint32_t Board_DCMotorSwingDutyPermille(BoardDCMotorSwingDirection direct
   return BOARD_DCMOTOR_SWING_DIR1_DUTY_PERMILLE;
 }
 
+static bool Board_DCMotorRackDirectionIsValid(BoardDCMotorRackDirection direction)
+{
+  return (direction == BOARD_DCMOTOR_RACK_DIR_0)
+      || (direction == BOARD_DCMOTOR_RACK_DIR_1);
+}
+
+static uint32_t Board_DCMotorRackDutyPermille(BoardDCMotorRackDirection direction)
+{
+  if (direction == BOARD_DCMOTOR_RACK_DIR_0) {
+    return BOARD_DCMOTOR_RACK_DIR0_DUTY_PERMILLE;
+  }
+
+  return BOARD_DCMOTOR_RACK_DIR1_DUTY_PERMILLE;
+}
+
 static bool Board_LimitSwitchSwingIsPressed(void)
 {
   return HAL_GPIO_ReadPin(LimitSW_Swing_GPIO_Port, LimitSW_Swing_Pin) == GPIO_PIN_RESET;
+}
+
+static bool Board_LimitSwitchRackOpenIsPressed(void)
+{
+  return HAL_GPIO_ReadPin(LimitSW_Rack_Open_GPIO_Port, LimitSW_Rack_Open_Pin)
+      == GPIO_PIN_RESET;
+}
+
+static bool Board_LimitSwitchRackCloseIsPressed(void)
+{
+  return HAL_GPIO_ReadPin(LimitSW_Rack_Close_GPIO_Port, LimitSW_Rack_Close_Pin)
+      == GPIO_PIN_RESET;
 }
 
 static bool Board_UserSwitchIsPressed(void)
@@ -461,6 +652,20 @@ static void Board_UpdateSwingLimitLed(void)
 static void Board_DCMotorSwingWaitForLimitRelease(void)
 {
   while (Board_LimitSwitchSwingIsPressed()) {
+    HAL_Delay(1);
+  }
+}
+
+static void Board_DCMotorRackWaitForOpenLimitRelease(void)
+{
+  while (Board_LimitSwitchRackOpenIsPressed()) {
+    HAL_Delay(1);
+  }
+}
+
+static void Board_DCMotorRackWaitForCloseLimitRelease(void)
+{
+  while (Board_LimitSwitchRackCloseIsPressed()) {
     HAL_Delay(1);
   }
 }
