@@ -33,7 +33,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ROBOT_TEST_MAX_WHEEL_SPEED_MM_S  500u
 #define ROBOT_TEST_MIN_WHEEL_SPEED_MM_S  10u
 #define ROBOT_TEST_SPEED_STAGES          6u
 #define ROBOT_TEST_STAGE_HOLD_MS         1000u
@@ -123,7 +122,7 @@ int main(void)
   Board_ClearStartSwitchInterruptStatus();
   Board_WaitForStartSwitchInterrupt();
 
-  Board_DCMotorSwingLowerUntilLimit();
+  // Board_DCMotorSwingLowerUntilLimit();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -570,12 +569,18 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 static void Robot_RunWheelSpeedSweepExperiment(void)
 {
+  uint32_t max_speed_mm_s = Board_MaxWheelSpeed_mm_s();
+  uint32_t min_speed_mm_s = ROBOT_TEST_MIN_WHEEL_SPEED_MM_S;
+
+  if (min_speed_mm_s > max_speed_mm_s) {
+    min_speed_mm_s = max_speed_mm_s;
+  }
+
   for (uint32_t stage = 0u; stage < ROBOT_TEST_SPEED_STAGES; stage++) {
-    uint32_t speed_mm_s = ROBOT_TEST_MAX_WHEEL_SPEED_MM_S;
+    uint32_t speed_mm_s = max_speed_mm_s;
 
     if (ROBOT_TEST_SPEED_STAGES > 1u) {
-      uint32_t speed_range = ROBOT_TEST_MAX_WHEEL_SPEED_MM_S
-          - ROBOT_TEST_MIN_WHEEL_SPEED_MM_S;
+      uint32_t speed_range = max_speed_mm_s - min_speed_mm_s;
       speed_mm_s -= (speed_range * stage) / (ROBOT_TEST_SPEED_STAGES - 1u);
     }
 

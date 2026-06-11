@@ -39,6 +39,8 @@ typedef enum {
 
 void Board_Init(void);
 
+uint32_t Board_MaxWheelSpeed_mm_s(void);
+
 void Board_StepperStart(
     BoardStepperMotor motor,
     BoardStepperDirection direction,

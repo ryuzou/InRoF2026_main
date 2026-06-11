@@ -2,7 +2,8 @@
 
 #define BOARD_STEPPER_TIM_HZ       1000000u  /* TIM3: 80 MHz / (79 + 1) */
 #define BOARD_VDDA_MV              3300u
-#define BOARD_STEPPER_CURRENT_MA   1200u
+#define BOARD_STEPPER_CURRENT_MA   1300u
+#define BOARD_MAX_WHEEL_SPEED_MM_S  500u
 #define BOARD_STEPPER_AXIS_COUNT   2u
 #define BOARD_DCMOTOR_DUTY_SCALE   1000u
 
@@ -88,6 +89,11 @@ void Board_Init(void)
   Board_ClearFaultInterruptStatus();
   Board_StepperEnable(true);
   HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+}
+
+uint32_t Board_MaxWheelSpeed_mm_s(void)
+{
+  return BOARD_MAX_WHEEL_SPEED_MM_S;
 }
 
 void Board_StepperStart(

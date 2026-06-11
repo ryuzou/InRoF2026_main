@@ -5,6 +5,7 @@
 #define ALGORITHM_ROBOT_PI  3.14159265358979323846f
 
 static uint32_t Algorithm_RobotAbsInt32(int32_t value);
+static uint32_t Algorithm_RobotClampWheelSpeed_mm_s(uint32_t speed_mm_s);
 static void Algorithm_RobotSetOneWheelSpeed_mm_s(
     BoardStepperMotor motor,
     int32_t speed_mm_s
@@ -67,13 +68,24 @@ static uint32_t Algorithm_RobotAbsInt32(int32_t value)
   return (uint32_t)(-(value + 1)) + 1u;
 }
 
+static uint32_t Algorithm_RobotClampWheelSpeed_mm_s(uint32_t speed_mm_s)
+{
+  uint32_t max_speed_mm_s = Board_MaxWheelSpeed_mm_s();
+
+  if (speed_mm_s > max_speed_mm_s) {
+    return max_speed_mm_s;
+  }
+
+  return speed_mm_s;
+}
+
 static void Algorithm_RobotSetOneWheelSpeed_mm_s(
     BoardStepperMotor motor,
     int32_t speed_mm_s
 )
 {
   uint32_t step_hz = Algorithm_RobotWheelSpeedToStepHz_mm_s(
-      Algorithm_RobotAbsInt32(speed_mm_s)
+      Algorithm_RobotClampWheelSpeed_mm_s(Algorithm_RobotAbsInt32(speed_mm_s))
   );
 
   if (step_hz == 0u) {
