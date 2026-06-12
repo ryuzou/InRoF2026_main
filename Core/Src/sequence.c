@@ -50,6 +50,7 @@
 #define SEQUENCE_BLUE_DROP_Y_MM    1550.0f
 
 static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm);
+static void Sequence_PrintTsd10(const char *label, int status, const Algorithm_Tsd10 *tsd);
 static int32_t Sequence_RoundToI32(float value);
 
 void Sequence_CollectBalls(void) {
@@ -63,22 +64,7 @@ void Sequence_CalibrateHeadingWithTsd10YWall(void)
 {
   Algorithm_Tsd10 tsd;
   int tsd_status = Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
-  // printf(
-  //     "TSD10 status=%d "
-  //     "ch0(valid=%u,result=0x%02X,dist=%u) "
-  //     "ch1(valid=%u,result=0x%02X,dist=%u) "
-  //     "ch2(valid=%u,result=0x%02X,dist=%u)\r\n",
-  //     tsd_status,
-  //     (unsigned int)tsd.valid[0],
-  //     (unsigned int)tsd.rpc_result[0],
-  //     (unsigned int)tsd.distance_mm[0],
-  //     (unsigned int)tsd.valid[1],
-  //     (unsigned int)tsd.rpc_result[1],
-  //     (unsigned int)tsd.distance_mm[1],
-  //     (unsigned int)tsd.valid[2],
-  //     (unsigned int)tsd.rpc_result[2],
-  //     (unsigned int)tsd.distance_mm[2]
-  // );
+  Sequence_PrintTsd10("Heading", tsd_status, &tsd);
 
   if (!tsd.valid[SEQUENCE_TSD10_BACK_RIGHT_INDEX]
       || !tsd.valid[SEQUENCE_TSD10_BACK_LEFT_INDEX]) {
@@ -96,6 +82,26 @@ void Sequence_CalibrateHeadingWithTsd10YWall(void)
   );
 
   RobotControl_SetCurrentPose(NULL, NULL, heading_mrad);
+}
+
+void Sequence_CallibrateRP1(void)
+{
+  Sequence_CalibrateHeadingWithTsd10YWall();
+
+  (void)RobotControl_IssueMoveToPose_mm_deg(NULL, NULL, 0);
+  Sequence_WaitForRobotCommand();
+
+  Algorithm_Tsd10 tsd;
+  int tsd_status = Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
+  Sequence_PrintTsd10("RP1", tsd_status, &tsd);
+  float x_2 = tsd.distance_mm[0];
+  float x_3 = (tsd.distance_mm[1] + tsd.distance_mm[2]) / 2.0f;
+
+
+  float correct_x = 500 - (86 + x_2);
+  float correct_y = -500 + (84 + x_3);
+  RobotControl_SetCurrentPose(correct_x, correct_y, 0);
+  Sequence_CalibrateHeadingWithTsd10YWall();
 }
 
 void Sequence_PlaceStoredBalls(void)
@@ -185,6 +191,31 @@ static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm)
     default:
       return false;
   }
+}
+
+static void Sequence_PrintTsd10(const char *label, int status, const Algorithm_Tsd10 *tsd)
+{
+  if (tsd == NULL) {
+    return;
+  }
+
+  printf(
+      "%s TSD10 status=%d "
+      "ch0(valid=%u,result=0x%02X,dist=%u) "
+      "ch1(valid=%u,result=0x%02X,dist=%u) "
+      "ch2(valid=%u,result=0x%02X,dist=%u)\r\n",
+      label,
+      status,
+      (unsigned int)tsd->valid[0],
+      (unsigned int)tsd->rpc_result[0],
+      (unsigned int)tsd->distance_mm[0],
+      (unsigned int)tsd->valid[1],
+      (unsigned int)tsd->rpc_result[1],
+      (unsigned int)tsd->distance_mm[1],
+      (unsigned int)tsd->valid[2],
+      (unsigned int)tsd->rpc_result[2],
+      (unsigned int)tsd->distance_mm[2]
+  );
 }
 
 static int32_t Sequence_RoundToI32(float value)

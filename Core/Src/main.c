@@ -180,9 +180,7 @@ int main(void)
     );
 
     //Calibrate RP1
-    Sequence_CalibrateHeadingWithTsd10YWall();
-    (void)RobotControl_IssueMoveToPose_mm_deg(NULL, NULL, 0);
-    Sequence_WaitForRobotCommand();
+    Sequence_CallibrateRP1();
 
     (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, 90);
     Sequence_WaitForRobotCommand();
