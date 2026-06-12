@@ -19,6 +19,11 @@ typedef struct {
   uint16_t status_flags;
 } Robot_Pose2D;
 
+typedef struct {
+  bool has_value;
+  float value;
+} RobotControl_OptionalFloat;
+
 typedef enum {
   ROBOT_CONTROL_COMMAND_OK = 0,
   ROBOT_CONTROL_COMMAND_RUNNING,
@@ -48,11 +53,76 @@ RobotControl_CommandResult RobotControl_IssueMoveSegment_mm(
     float end_x_mm,
     float end_y_mm
 );
-RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
+RobotControl_CommandResult RobotControl_IssueMoveToPoseOptional_mm_deg(
+    RobotControl_OptionalFloat target_x_mm,
+    RobotControl_OptionalFloat target_y_mm,
+    RobotControl_OptionalFloat target_heading_deg
+);
+RobotControl_CommandResult RobotControl_IssueMoveToPoseOptionalHeading_mm_deg(
+    float target_x_mm,
+    float target_y_mm,
+    const float *target_heading_deg
+);
+RobotControl_CommandResult RobotControl_IssueMoveToPoseWithHeading_mm_deg(
     float target_x_mm,
     float target_y_mm,
     float target_heading_deg
 );
+static inline RobotControl_OptionalFloat RobotControl_OptionalFloatFromFloat(float value)
+{
+  RobotControl_OptionalFloat arg;
+  arg.has_value = true;
+  arg.value = value;
+  return arg;
+}
+static inline RobotControl_OptionalFloat RobotControl_OptionalFloatFromDouble(double value)
+{
+  return RobotControl_OptionalFloatFromFloat((float)value);
+}
+static inline RobotControl_OptionalFloat RobotControl_OptionalFloatFromLongDouble(long double value)
+{
+  return RobotControl_OptionalFloatFromFloat((float)value);
+}
+static inline RobotControl_OptionalFloat RobotControl_OptionalFloatFromSignedLongLong(long long value)
+{
+  return RobotControl_OptionalFloatFromFloat((float)value);
+}
+static inline RobotControl_OptionalFloat RobotControl_OptionalFloatFromUnsignedLongLong(unsigned long long value)
+{
+  return RobotControl_OptionalFloatFromFloat((float)value);
+}
+static inline RobotControl_OptionalFloat RobotControl_OptionalFloatFromNull(const void *value)
+{
+  (void)value;
+  RobotControl_OptionalFloat arg;
+  arg.has_value = false;
+  arg.value = 0.0f;
+  return arg;
+}
+#define RobotControl_OptionalFloatArg(value) \
+  _Generic((value), \
+      float: RobotControl_OptionalFloatFromFloat, \
+      double: RobotControl_OptionalFloatFromDouble, \
+      long double: RobotControl_OptionalFloatFromLongDouble, \
+      char: RobotControl_OptionalFloatFromSignedLongLong, \
+      signed char: RobotControl_OptionalFloatFromSignedLongLong, \
+      unsigned char: RobotControl_OptionalFloatFromUnsignedLongLong, \
+      short: RobotControl_OptionalFloatFromSignedLongLong, \
+      unsigned short: RobotControl_OptionalFloatFromUnsignedLongLong, \
+      int: RobotControl_OptionalFloatFromSignedLongLong, \
+      unsigned int: RobotControl_OptionalFloatFromUnsignedLongLong, \
+      long: RobotControl_OptionalFloatFromSignedLongLong, \
+      unsigned long: RobotControl_OptionalFloatFromUnsignedLongLong, \
+      long long: RobotControl_OptionalFloatFromSignedLongLong, \
+      unsigned long long: RobotControl_OptionalFloatFromUnsignedLongLong, \
+      default: RobotControl_OptionalFloatFromNull \
+  )(value)
+#define RobotControl_IssueMoveToPose_mm_deg(target_x_mm, target_y_mm, target_heading_deg) \
+  RobotControl_IssueMoveToPoseOptional_mm_deg( \
+      RobotControl_OptionalFloatArg(target_x_mm), \
+      RobotControl_OptionalFloatArg(target_y_mm), \
+      RobotControl_OptionalFloatArg(target_heading_deg) \
+  )
 RobotControl_CommandResult RobotControl_IssueTurnTo_rad(float target_heading_rad);
 RobotControl_CommandResult RobotControl_IssueTurnTo_deg(float target_heading_deg);
 bool RobotControl_IsCommandComplete(void);

@@ -272,10 +272,10 @@ RobotControl_CommandResult RobotControl_IssueMoveSegment_mm(
   return ROBOT_CONTROL_COMMAND_OK;
 }
 
-RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
-    float target_x_mm,
-    float target_y_mm,
-    float target_heading_deg
+RobotControl_CommandResult RobotControl_IssueMoveToPoseOptional_mm_deg(
+    RobotControl_OptionalFloat target_x_arg,
+    RobotControl_OptionalFloat target_y_arg,
+    RobotControl_OptionalFloat target_heading_arg
 )
 {
   if (g_state != ROBOT_CONTROL_STATE_IDLE) {
@@ -287,14 +287,23 @@ RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
     return ROBOT_CONTROL_COMMAND_NO_POSE;
   }
 
-  float target_heading_rad = RobotControl_WrapPi(
-      target_heading_deg * ROBOT_CONTROL_PI / 180.0f
-  );
+  float target_x_mm = target_x_arg.has_value
+      ? target_x_arg.value
+      : (float)pose.x_mm;
+  float target_y_mm = target_y_arg.has_value
+      ? target_y_arg.value
+      : (float)pose.y_mm;
+  bool has_final_turn = target_heading_arg.has_value;
+  float target_heading_rad = has_final_turn
+      ? RobotControl_WrapPi(target_heading_arg.value * ROBOT_CONTROL_PI / 180.0f)
+      : pose.h_rad;
   float dx = target_x_mm - (float)pose.x_mm;
   float dy = target_y_mm - (float)pose.y_mm;
   float distance = sqrtf(dx * dx + dy * dy);
   if (distance < ROBOT_CONTROL_POS_TOL_MM) {
-    return RobotControl_IssueTurnTo_rad(target_heading_rad);
+    return has_final_turn
+        ? RobotControl_IssueTurnTo_rad(target_heading_rad)
+        : ROBOT_CONTROL_COMMAND_OK;
   }
 
   float hx = RobotControl_HeadingUnitX(pose.h_rad);
@@ -333,7 +342,7 @@ RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
     }
   }
 
-  next_command.has_final_turn = true;
+  next_command.has_final_turn = has_final_turn;
   next_command.target_th = target_heading_rad;
 
   uint32_t primask = RobotControl_EnterCritical();
@@ -354,6 +363,36 @@ RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
   RobotControl_ExitCritical(primask);
 
   return ROBOT_CONTROL_COMMAND_OK;
+}
+
+RobotControl_CommandResult RobotControl_IssueMoveToPoseOptionalHeading_mm_deg(
+    float target_x_mm,
+    float target_y_mm,
+    const float *target_heading_deg
+)
+{
+  RobotControl_OptionalFloat target_heading_arg;
+  target_heading_arg.has_value = target_heading_deg != NULL;
+  target_heading_arg.value = (target_heading_deg != NULL) ? *target_heading_deg : 0.0f;
+
+  return RobotControl_IssueMoveToPoseOptional_mm_deg(
+      RobotControl_OptionalFloatFromFloat(target_x_mm),
+      RobotControl_OptionalFloatFromFloat(target_y_mm),
+      target_heading_arg
+  );
+}
+
+RobotControl_CommandResult RobotControl_IssueMoveToPoseWithHeading_mm_deg(
+    float target_x_mm,
+    float target_y_mm,
+    float target_heading_deg
+)
+{
+  return RobotControl_IssueMoveToPoseOptionalHeading_mm_deg(
+      target_x_mm,
+      target_y_mm,
+      &target_heading_deg
+  );
 }
 
 RobotControl_CommandResult RobotControl_IssueTurnTo_rad(float target_heading_rad)
