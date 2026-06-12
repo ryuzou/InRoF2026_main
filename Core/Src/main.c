@@ -220,9 +220,16 @@ int main(void)
   Board_DCMotorRackCloseUntilLimit();
   Board_DCMotorSwingRaiseUntilLimit();
 
-  while (1){}
+  (void)RobotControl_IssueMoveSegment_mm(
+    (float)pose.x_mm,
+    (float)pose.y_mm,
+    300,
+    250
+);
+  Board_DCMotorRackOpenUntilLimit();
+  while (!RobotControl_IsCommandComplete()) {}
 
-  // Board_DCMotorRackCloseUntilLimit();
+  while (1){}
 
   /* USER CODE END 2 */
 
@@ -233,42 +240,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    for (uint32_t i = 0; i < square_count; i++) {
-      Robot_Pose2D pose;
-      while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
-        Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
-        HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
-      }
-
-      (void)RobotControl_IssueMoveSegment_mm(
-          (float)pose.x_mm,
-          (float)pose.y_mm,
-          square[i].x_mm,
-          square[i].y_mm
-      );
-      // Board_DCMotorRackOpenUntilLimit();
-      Board_DCMotorSwingLowerUntilLimit();
-      uint8_t servo_result = CANRPC_RES_INVALID;
-      int servo_status = Algorithm_ServoOpenCloseBlocking(&servo_result, 300);
-      printf("servo_open_close[status=%d res=0x%02x]\r\n",
-             servo_status,
-             (unsigned int)servo_result);
-      while (!RobotControl_IsCommandComplete()) {
-        // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
-        // HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
-      }
-      // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
-
-      (void)RobotControl_IssueTurnTo_deg(square[i].turn_h_deg);
-      // Board_DCMotorRackCloseUntilLimit();
-      Board_DCMotorSwingRaiseUntilLimit();
-      (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-      while (!RobotControl_IsCommandComplete()) {
-        // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
-        // HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
-      }
-      // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
-    }
   }
   /* USER CODE END 3 */
 }
