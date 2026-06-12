@@ -13,6 +13,10 @@
 
 #define TOPIC_COLOR_RAW          0x30u
 
+#ifndef ALGORITHM_TSD10_BUSY_RETRY_DELAY_MS
+#define ALGORITHM_TSD10_BUSY_RETRY_DELAY_MS  20u
+#endif
+
 #define SENSOR_COLOR_ARG(atime, gain, flags) \
   ((int32_t)((uint32_t)(atime) | ((uint32_t)(gain) << 8) | ((uint32_t)(flags) << 16)))
 
@@ -148,35 +152,50 @@ int Algorithm_ReadTsd10Blocking(Algorithm_Tsd10 *out, uint32_t timeout_ms)
     tsd.rpc_result[ch] = CANRPC_RES_INVALID;
   }
 
-  int handles[ALGORITHM_TSD10_CHANNELS] = {-1, -1, -1};
-  uint32_t wait_mask = 0u;
+  int first_error = 0;
+  uint32_t deadline_ms = board_millis() + timeout_ms;
 
   for (uint8_t ch = 0; ch < ALGORITHM_TSD10_CHANNELS; ch++) {
-    handles[ch] = canrpc_call(NODE_SENSOR, CMD_TSD_READ, (int32_t)ch);
-    if (handles[ch] >= 0) {
-      wait_mask |= CANRPC_H(handles[ch]);
-    } else {
-      tsd.rpc_result[ch] = CANRPC_RES_BUSY;
+    for (;;) {
+      int handle = canrpc_call(NODE_SENSOR, CMD_TSD_READ, (int32_t)ch);
+      if (handle < 0) {
+        tsd.rpc_result[ch] = CANRPC_RES_BUSY;
+      } else {
+        uint32_t now_ms = board_millis();
+        uint32_t wait_ms = Algorithm_TimeReached(now_ms, deadline_ms)
+            ? 0u
+            : (uint32_t)(deadline_ms - now_ms);
+        int rc = canrpc_wait(CANRPC_H(handle), wait_ms);
+        tsd.rpc_result[ch] = canrpc_result(handle);
+        tsd.valid[ch] = (rc == 0) && (tsd.rpc_result[ch] == CANRPC_OK);
+        if (tsd.valid[ch]) {
+          tsd.distance_mm[ch] = (uint16_t)canrpc_ret(handle);
+          break;
+        }
+
+        if ((rc < 0) || (tsd.rpc_result[ch] != CANRPC_RES_BUSY)) {
+          if (first_error == 0) {
+            first_error = (rc < 0) ? rc : (int)tsd.rpc_result[ch];
+          }
+          break;
+        }
+      }
+
+      if (Algorithm_TimeReached(board_millis(), deadline_ms)) {
+        if (first_error == 0) {
+          first_error = (int)tsd.rpc_result[ch];
+        }
+        break;
+      }
+
+      HAL_Delay(ALGORITHM_TSD10_BUSY_RETRY_DELAY_MS);
     }
   }
 
-  int rc = (wait_mask != 0u) ? canrpc_wait(wait_mask, timeout_ms) : CANRPC_ERR_PARAM;
   tsd.rx_t_ms = HAL_GetTick();
 
-  for (uint8_t ch = 0; ch < ALGORITHM_TSD10_CHANNELS; ch++) {
-    if (handles[ch] < 0) {
-      continue;
-    }
-
-    tsd.rpc_result[ch] = canrpc_result(handles[ch]);
-    tsd.valid[ch] = (tsd.rpc_result[ch] == CANRPC_OK);
-    if (tsd.valid[ch]) {
-      tsd.distance_mm[ch] = (uint16_t)canrpc_ret(handles[ch]);
-    }
-  }
-
   *out = tsd;
-  return rc;
+  return first_error;
 }
 
 int Algorithm_ReadColorRawBlocking(Algorithm_ColorRaw *out, uint32_t timeout_ms)

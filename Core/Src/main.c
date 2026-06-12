@@ -172,9 +172,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-
+  while (1) {
     RobotControl_SetCurrentPose(
         250,
         -250,
@@ -182,8 +180,11 @@ int main(void)
     );
 
     //Calibrate RP1
+    Sequence_CalibrateHeadingWithTsd10YWall();
+    (void)RobotControl_IssueMoveToPose_mm_deg(NULL, NULL, 0);
+    Sequence_WaitForRobotCommand();
 
-    (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, NULL);
+    (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, 90);
     Sequence_WaitForRobotCommand();
     (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);  //Free ball
     HAL_Delay(500);
@@ -201,12 +202,14 @@ int main(void)
     Sequence_IssueMoveToRP2();
     Sequence_WaitForRobotCommand();
     // Caliblate RP2
+    // Sequence_CalibrateHeadingWithTsd10YWall();
     Sequence_PlaceStoredBalls();
 
     Sequence_IssueMoveToRP2();
     Board_DCMotorRackOpenUntilLimit();
     Sequence_WaitForRobotCommand();
     // Caliblate RP2
+    // Sequence_CalibrateHeadingWithTsd10YWall();
 
     while (1){} //stop loop
   }
