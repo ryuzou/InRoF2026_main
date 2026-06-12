@@ -103,6 +103,15 @@
 #define ROBOT_CONTROL_POSE_SET_CANRPC_TIMEOUT_MS  1000u
 #endif
 
+#ifndef ROBOT_CONTROL_POSE_SET_RETRY_DELAY_MS
+#define ROBOT_CONTROL_POSE_SET_RETRY_DELAY_MS  20u
+#endif
+
+#ifndef ROBOT_CONTROL_POSE_SET_RETRY_TIMEOUT_MS
+#define ROBOT_CONTROL_POSE_SET_RETRY_TIMEOUT_MS  \
+  (ROBOT_CONTROL_POSE_SET_CANRPC_TIMEOUT_MS + CANRPC_DONE_HOLD_MS)
+#endif
+
 typedef enum {
   ROBOT_CONTROL_STATE_IDLE = 0,
   ROBOT_CONTROL_STATE_GO,
@@ -567,8 +576,31 @@ static bool RobotControl_PoseIsFresh(const Robot_Pose2D *pose, uint32_t now_ms)
 
 static void RobotControl_CallSensorCommandOrError(uint8_t cmd, int32_t arg)
 {
-  if (canrpc_call_wait(NODE_SENSOR, cmd, arg, ROBOT_CONTROL_POSE_SET_CANRPC_TIMEOUT_MS) != 0) {
-    Error_Handler();
+  uint32_t deadline_ms = board_millis() + ROBOT_CONTROL_POSE_SET_RETRY_TIMEOUT_MS;
+
+  for (;;) {
+    int handle = canrpc_call(NODE_SENSOR, cmd, arg);
+    if (handle >= 0) {
+      uint32_t now_ms = board_millis();
+      uint32_t wait_ms = ((int32_t)(now_ms - deadline_ms) >= 0)
+          ? 0u
+          : (uint32_t)(deadline_ms - now_ms);
+      int rc = canrpc_wait(CANRPC_H(handle), wait_ms);
+      uint8_t result = canrpc_result(handle);
+      if ((rc == 0) && (result == CANRPC_OK)) {
+        return;
+      }
+
+      if ((rc < 0) || (result != CANRPC_RES_BUSY)) {
+        Error_Handler();
+      }
+    }
+
+    if ((int32_t)(board_millis() - deadline_ms) >= 0) {
+      Error_Handler();
+    }
+
+    HAL_Delay(ROBOT_CONTROL_POSE_SET_RETRY_DELAY_MS);
   }
 }
 

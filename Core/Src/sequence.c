@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #ifndef SEQUENCE_MAX_STORED_BALLS
 #define SEQUENCE_MAX_STORED_BALLS  2
@@ -50,7 +49,6 @@
 #define SEQUENCE_BLUE_DROP_Y_MM    1550.0f
 
 static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm);
-static void Sequence_PrintTsd10(const char *label, int status, const Algorithm_Tsd10 *tsd);
 static int32_t Sequence_RoundToI32(float value);
 
 void Sequence_CollectBalls(void) {
@@ -63,8 +61,7 @@ void Sequence_CollectBalls(void) {
 void Sequence_CalibrateHeadingWithTsd10YWall(void)
 {
   Algorithm_Tsd10 tsd;
-  int tsd_status = Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
-  Sequence_PrintTsd10("Heading", tsd_status, &tsd);
+  (void)Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
 
   if (!tsd.valid[SEQUENCE_TSD10_BACK_RIGHT_INDEX]
       || !tsd.valid[SEQUENCE_TSD10_BACK_LEFT_INDEX]) {
@@ -75,11 +72,6 @@ void Sequence_CalibrateHeadingWithTsd10YWall(void)
       - (int32_t)tsd.distance_mm[SEQUENCE_TSD10_BACK_LEFT_INDEX];
   float heading_rad = -atan2f((float)x1_mm, SEQUENCE_TSD10_BACK_SPAN_MM);
   int32_t heading_mrad = Sequence_RoundToI32(heading_rad * 1000.0f);
-  printf(
-      "TSD10 calib x1=%ldmm heading=%ldmrad\r\n",
-      (long)x1_mm,
-      (long)heading_mrad
-  );
 
   RobotControl_SetCurrentPose(NULL, NULL, heading_mrad);
 }
@@ -88,12 +80,19 @@ void Sequence_CallibrateRP1(void)
 {
   Sequence_CalibrateHeadingWithTsd10YWall();
 
-  (void)RobotControl_IssueMoveToPose_mm_deg(NULL, NULL, 0);
+  if (RobotControl_IssueTurnTo_deg(0.0f) != ROBOT_CONTROL_COMMAND_OK) {
+    Error_Handler();
+  }
   Sequence_WaitForRobotCommand();
 
   Algorithm_Tsd10 tsd;
-  int tsd_status = Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
-  Sequence_PrintTsd10("RP1", tsd_status, &tsd);
+  (void)Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
+  if (!tsd.valid[0]
+      || !tsd.valid[SEQUENCE_TSD10_BACK_RIGHT_INDEX]
+      || !tsd.valid[SEQUENCE_TSD10_BACK_LEFT_INDEX]) {
+    Error_Handler();
+  }
+
   float x_2 = tsd.distance_mm[0];
   float x_3 = (tsd.distance_mm[1] + tsd.distance_mm[2]) / 2.0f;
 
@@ -101,7 +100,35 @@ void Sequence_CallibrateRP1(void)
   float correct_x = 500 - (86 + x_2);
   float correct_y = -500 + (84 + x_3);
   RobotControl_SetCurrentPose(correct_x, correct_y, 0);
+  // Sequence_CalibrateHeadingWithTsd10YWall();
+}
+
+void Sequence_CallibrateRP2(void)
+{
+  (void)RobotControl_IssueMoveToPose_mm_deg(NULL, NULL, 0);
   Sequence_CalibrateHeadingWithTsd10YWall();
+
+  if (RobotControl_IssueTurnTo_deg(0.0f) != ROBOT_CONTROL_COMMAND_OK) {
+    Error_Handler();
+  }
+  Sequence_WaitForRobotCommand();
+
+  Algorithm_Tsd10 tsd;
+  (void)Algorithm_ReadTsd10Blocking(&tsd, SEQUENCE_TSD10_READ_TIMEOUT_MS);
+  if (!tsd.valid[0]
+      || !tsd.valid[SEQUENCE_TSD10_BACK_RIGHT_INDEX]
+      || !tsd.valid[SEQUENCE_TSD10_BACK_LEFT_INDEX]) {
+    Error_Handler();
+      }
+
+  float x_2 = tsd.distance_mm[0];
+  float x_3 = (tsd.distance_mm[1] + tsd.distance_mm[2]) / 2.0f;
+
+
+  float correct_x = 1340 - (86 + x_2);
+  float correct_y = 0 + (84 + x_3);
+  RobotControl_SetCurrentPose(correct_x, correct_y, 0);
+  // Sequence_CalibrateHeadingWithTsd10YWall();
 }
 
 void Sequence_PlaceStoredBalls(void)
@@ -161,12 +188,11 @@ void Sequence_PlaceStoredBalls(void)
 
 void Sequence_WaitForRobotCommand(void)
 {
-  while (!RobotControl_IsCommandComplete()) {
-  }
+  (void)RobotControl_WaitForCommandComplete(ROBOT_CONTROL_WAIT_FOREVER_MS);
 }
 
 void Sequence_IssueMoveToRP2(void) {
-  (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, 0);
+  (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, NULL);
 }
 
 static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm)
@@ -191,31 +217,6 @@ static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm)
     default:
       return false;
   }
-}
-
-static void Sequence_PrintTsd10(const char *label, int status, const Algorithm_Tsd10 *tsd)
-{
-  if (tsd == NULL) {
-    return;
-  }
-
-  printf(
-      "%s TSD10 status=%d "
-      "ch0(valid=%u,result=0x%02X,dist=%u) "
-      "ch1(valid=%u,result=0x%02X,dist=%u) "
-      "ch2(valid=%u,result=0x%02X,dist=%u)\r\n",
-      label,
-      status,
-      (unsigned int)tsd->valid[0],
-      (unsigned int)tsd->rpc_result[0],
-      (unsigned int)tsd->distance_mm[0],
-      (unsigned int)tsd->valid[1],
-      (unsigned int)tsd->rpc_result[1],
-      (unsigned int)tsd->distance_mm[1],
-      (unsigned int)tsd->valid[2],
-      (unsigned int)tsd->rpc_result[2],
-      (unsigned int)tsd->distance_mm[2]
-  );
 }
 
 static int32_t Sequence_RoundToI32(float value)
