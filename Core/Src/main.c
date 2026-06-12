@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "algorithm.h"
 #include "board.h"
 #include "canrpc.h"
 #include "robot_can.h"
@@ -103,6 +104,7 @@ static uint32_t Robot_AbsI32ToU32(int32_t value);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
 static uint32_t Robot_GetU32Le(const uint8_t *p);
 static int32_t Robot_GetI32Le(const uint8_t *p);
+static uint32_t Robot_HueDegToMdegForPrint(float hue_deg);
 
 /* USER CODE END PFP */
 
@@ -111,7 +113,12 @@ static int32_t Robot_GetI32Le(const uint8_t *p);
 int _write(int file, char *ptr, int len)
 {
   (void)file;
-  HAL_UART_Transmit(&hlpuart1,(uint8_t *)ptr,len,10);
+  if (len <= 0) {
+    return 0;
+  }
+
+  uint32_t timeout_ms = (uint32_t)len + 20u;
+  (void)HAL_UART_Transmit(&hlpuart1, (uint8_t *)ptr, (uint16_t)len, timeout_ms);
   return len;
 }
 /* USER CODE END 0 */
@@ -709,6 +716,12 @@ static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
 {
   const RobotControl_Tsd10 *tsd = &sample->tsd;
   const RobotControl_ColorRaw *color = &sample->color;
+  Algorithm_ColorDetection color_detection = Algorithm_DetectBallColorFromRgb(
+      color->red,
+      color->green,
+      color->blue
+  );
+  uint32_t hue_mdeg = Robot_HueDegToMdegForPrint(color_detection.hue_deg);
   uint32_t now_ms = HAL_GetTick();
   uint32_t color_age_ms = color->valid ? (uint32_t)(now_ms - color->rx_t_ms) : 0u;
 
@@ -724,7 +737,7 @@ static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
          tsd->valid[2] ? 1u : 0u,
          (unsigned int)tsd->rpc_result[2]);
 
-  printf("color[status=%d valid=%u res=0x%02x seq=%u sensor_t=%lums age=%lums c=%u r=%u g=%u b=%u atime=0x%02x gain=%u led=%ums flags=0x%02x]\r\n",
+  printf("color[status=%d valid=%u res=0x%02x seq=%u sensor_t=%lums age=%lums c=%u r=%u g=%u b=%u h=%lu.%03lu colordetect=%u name=%s atime=0x%02x gain=%u led=%ums flags=0x%02x]\r\n",
          sample->color_status,
          color->valid ? 1u : 0u,
          (unsigned int)color->rpc_result,
@@ -735,6 +748,10 @@ static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
          (unsigned int)color->red,
          (unsigned int)color->green,
          (unsigned int)color->blue,
+         (unsigned long)(hue_mdeg / 1000u),
+         (unsigned long)(hue_mdeg % 1000u),
+         (unsigned int)color_detection.color,
+         Algorithm_BallColorName(color_detection.color),
          (unsigned int)color->atime,
          (unsigned int)color->gain,
          (unsigned int)color->led_on_ms,
@@ -817,6 +834,15 @@ static uint32_t Robot_GetU32Le(const uint8_t *p)
 static int32_t Robot_GetI32Le(const uint8_t *p)
 {
   return (int32_t)Robot_GetU32Le(p);
+}
+
+static uint32_t Robot_HueDegToMdegForPrint(float hue_deg)
+{
+  if (hue_deg <= 0.0f) {
+    return 0u;
+  }
+
+  return (uint32_t)(hue_deg * 1000.0f + 0.5f);
 }
 
 /* USER CODE END 4 */
