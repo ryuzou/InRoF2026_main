@@ -178,14 +178,6 @@ int main(void)
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
 
-  const Robot_SquareStep square[] = {
-      {0.0f, ROBOT_POSITION_SQUARE_SIDE_MM, 0.0f, 90.0f},
-      {ROBOT_POSITION_SQUARE_SIDE_MM, ROBOT_POSITION_SQUARE_SIDE_MM, 90.0f, 180.0f},
-      {ROBOT_POSITION_SQUARE_SIDE_MM, 0.0f, 180.0f, -90.0f},
-      {0.0f, 0.0f, -90.0f, 0.0f},
-  };
-  const uint32_t square_count = sizeof(square) / sizeof(square[0]);
-
   Robot_SetCurrentPose(
       250,
       -250,
@@ -204,6 +196,7 @@ int main(void)
       300,
       250
   );
+  Board_DCMotorRackCloseUntilLimit();
   while (!RobotControl_IsCommandComplete()) {}
   (void)RobotControl_IssueTurnTo_deg(90);
   while (!RobotControl_IsCommandComplete()) {}
@@ -228,6 +221,31 @@ int main(void)
 );
   Board_DCMotorRackOpenUntilLimit();
   while (!RobotControl_IsCommandComplete()) {}
+  (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
+
+  (void)RobotControl_IssueMoveSegment_mm(
+    (float)pose.x_mm,
+    (float)pose.y_mm,
+    1330,
+    250
+);
+  Board_DCMotorSwingLowerUntilLimit();
+  while (!RobotControl_IsCommandComplete()) {}
+  Board_DCMotorRackCloseUntilLimit();
+  Board_DCMotorSwingRaiseUntilLimit();
+
+
+  (void)RobotControl_IssueMoveSegment_mm(
+    (float)pose.x_mm,
+    (float)pose.y_mm,
+    300,
+    250
+);
+  Board_DCMotorRackOpenUntilLimit();
+  while (!RobotControl_IsCommandComplete()) {}
+  (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
+
+
 
   while (1){}
 

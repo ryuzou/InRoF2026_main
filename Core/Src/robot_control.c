@@ -106,6 +106,7 @@ typedef struct {
   float ay;
   float ux;
   float uy;
+  float direction;
   float th_line;
   float target_th;
   float len;
@@ -406,14 +407,18 @@ static bool RobotControl_BuildMoveCommand(
   float dx = end_x_mm - (float)pose->x_mm;
   float dy = end_y_mm - (float)pose->y_mm;
   float d_fwd = dx * hx + dy * hy;
-  float d_lat = dx * hy - dy * hx;
+  float direction = (d_fwd >= 0.0f) ? 1.0f : -1.0f;
+  float len = RobotControl_AbsFloat(d_fwd);
+  float ux = hx * direction;
+  float uy = hy * direction;
+  float d_lat = dx * uy - dy * ux;
 
-  if (d_fwd < ROBOT_CONTROL_D_FWD_MIN_MM) {
+  if (len < ROBOT_CONTROL_D_FWD_MIN_MM) {
     return false;
   }
 
   float e0 = RobotControl_AbsFloat(d_lat);
-  float lam_lo = 5.0f / (ROBOT_CONTROL_ALPHA * d_fwd);
+  float lam_lo = 5.0f / (ROBOT_CONTROL_ALPHA * len);
   float lam = RobotControl_MaxFloat(ROBOT_CONTROL_LAMBDA_DEFAULT_INV_MM, lam_lo);
   if (e0 > ROBOT_CONTROL_LAT_EPS_MM) {
     float lam_hi = (2.7f * ROBOT_CONTROL_TH_ALLOW_RAD) / e0;
@@ -424,13 +429,14 @@ static bool RobotControl_BuildMoveCommand(
   }
 
   memset(out, 0, sizeof(*out));
-  out->ux = hx;
-  out->uy = hy;
+  out->ux = ux;
+  out->uy = uy;
+  out->direction = direction;
   out->th_line = pose->h_rad;
   out->target_th = out->th_line;
-  out->len = d_fwd;
-  out->ax = end_x_mm - d_fwd * hx;
-  out->ay = end_y_mm - d_fwd * hy;
+  out->len = len;
+  out->ax = end_x_mm - len * ux;
+  out->ay = end_y_mm - len * uy;
   out->k1 = lam * lam;
   out->k2 = 2.0f * lam;
 
@@ -455,6 +461,7 @@ static RobotControl_Command RobotControl_CommandSnapshot(void)
   command.ay = g_command.ay;
   command.ux = g_command.ux;
   command.uy = g_command.uy;
+  command.direction = g_command.direction;
   command.th_line = g_command.th_line;
   command.target_th = g_command.target_th;
   command.len = g_command.len;
@@ -498,14 +505,21 @@ static void RobotControl_ControlStep(void)
     float e = px * command.uy - py * command.ux;
     float th_error = RobotControl_WrapPi(pose.h_rad - command.th_line);
     float d_rem = command.len - s;
-    float stop_dist = (v * v) / (2.0f * ROBOT_CONTROL_A_MAX_MM_S2);
+    float speed = RobotControl_AbsFloat(v);
+    float stop_dist = (speed * speed) / (2.0f * ROBOT_CONTROL_A_MAX_MM_S2);
 
     if (d_rem <= stop_dist) {
-      v = RobotControl_MaxFloat(v - ROBOT_CONTROL_A_MAX_MM_S2 * ROBOT_CONTROL_DT_S, 0.0f);
+      speed = RobotControl_MaxFloat(
+          speed - ROBOT_CONTROL_A_MAX_MM_S2 * ROBOT_CONTROL_DT_S,
+          0.0f
+      );
     } else {
-      v = RobotControl_MinFloat(v + ROBOT_CONTROL_A_MAX_MM_S2 * ROBOT_CONTROL_DT_S,
-                                ROBOT_CONTROL_V_MAX_MM_S);
+      speed = RobotControl_MinFloat(
+          speed + ROBOT_CONTROL_A_MAX_MM_S2 * ROBOT_CONTROL_DT_S,
+          ROBOT_CONTROL_V_MAX_MM_S
+      );
     }
+    v = speed * command.direction;
 
     w = RobotControl_ClampFloat(
         v * (-command.k1 * e - command.k2 * th_error),
