@@ -32,16 +32,20 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct {
+  float x_mm;
+  float y_mm;
+  float move_h_deg;
+  float turn_h_deg;
+} Robot_SquareStep;
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ROBOT_TEST_RACK_LIMIT_HOLD_MS  1000u
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
-#define ROBOT_SENSOR_CANRPC_TIMEOUT_MS 1000u
-#define ROBOT_SERVO_CANRPC_TIMEOUT_MS  1000u
-#define ROBOT_SENSOR_TEST_PERIOD_MS    1000u
+#define ROBOT_POSITION_PRINT_PERIOD_MS 200u
+#define ROBOT_POSITION_SQUARE_SIDE_MM  500.0f
 
 #define TOPIC_POSE2D             0x10u
 
@@ -66,18 +70,6 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim7;
 
 /* USER CODE BEGIN PV */
-typedef struct {
-  bool valid;
-  uint8_t seq;
-  uint32_t sensor_t_ms;
-  uint32_t rx_t_ms;
-  int32_t x_mm;
-  int32_t y_mm;
-  float h_rad;
-  uint16_t status_flags;
-} Robot_Pose2D;
-
-static volatile Robot_Pose2D g_sensor_pose;
 
 /* USER CODE END PV */
 
@@ -93,17 +85,19 @@ static void MX_LPUART1_UART_Init(void);
 static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
-static void Robot_PrintPose(uint32_t now_ms);
-static void Robot_PrintSensorSample(const Algorithm_SensorSample *sample);
+static void Robot_PrintCurrentAndTargetPose(
+    float target_x_mm,
+    float target_y_mm,
+    float target_h_deg
+);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
-static Robot_Pose2D Robot_GetPoseSnapshot(void);
-static float Robot_PoseHeadingToNodeRad(int32_t h_mrad_ccw);
-static int32_t Robot_RadToMradForPrint(float rad);
+static float Robot_PoseHeadingToNodeRad(int32_t h_mrad);
+static int32_t Robot_RadToMdegForPrint(float rad);
+static int32_t Robot_DegToMdegForPrint(float deg);
 static uint32_t Robot_AbsI32ToU32(int32_t value);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
 static uint32_t Robot_GetU32Le(const uint8_t *p);
 static int32_t Robot_GetI32Le(const uint8_t *p);
-static uint32_t Robot_HueDegToMdegForPrint(float hue_deg);
 
 /* USER CODE END PFP */
 
@@ -178,6 +172,14 @@ int main(void)
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
 
+  const Robot_SquareStep square[] = {
+      {0.0f, ROBOT_POSITION_SQUARE_SIDE_MM, 0.0f, 90.0f},
+      {ROBOT_POSITION_SQUARE_SIDE_MM, ROBOT_POSITION_SQUARE_SIDE_MM, 90.0f, 180.0f},
+      {ROBOT_POSITION_SQUARE_SIDE_MM, 0.0f, 180.0f, -90.0f},
+      {0.0f, 0.0f, -90.0f, 0.0f},
+  };
+  const uint32_t square_count = sizeof(square) / sizeof(square[0]);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -187,16 +189,32 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    Algorithm_SensorSample sample;
-    (void)Algorithm_ReadSensorSampleBlocking(&sample, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
-    Robot_PrintPose(HAL_GetTick());
-    Robot_PrintSensorSample(&sample);
-    uint8_t servo_result = CANRPC_RES_INVALID;
-    int servo_status = Algorithm_ServoOpenCloseBlocking(&servo_result, ROBOT_SERVO_CANRPC_TIMEOUT_MS);
-    printf("servo_open_close[status=%d res=0x%02x]\r\n",
-           servo_status,
-           (unsigned int)servo_result);
-    HAL_Delay(ROBOT_SENSOR_TEST_PERIOD_MS);
+    for (uint32_t i = 0; i < square_count; i++) {
+      Robot_Pose2D pose;
+      while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
+        Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+        HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+      }
+
+      (void)RobotControl_IssueMoveSegment_mm(
+          (float)pose.x_mm,
+          (float)pose.y_mm,
+          square[i].x_mm,
+          square[i].y_mm
+      );
+      while (!RobotControl_IsCommandComplete()) {
+        Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+        HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+      }
+      Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+
+      (void)RobotControl_IssueTurnTo_deg(square[i].turn_h_deg);
+      while (!RobotControl_IsCommandComplete()) {
+        Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
+        HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+      }
+      Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
+    }
   }
   /* USER CODE END 3 */
 }
@@ -688,70 +706,31 @@ static void Robot_SendStartCommandToRemoteNodes(void)
   }
 }
 
-static void Robot_PrintPose(uint32_t now_ms)
+static void Robot_PrintCurrentAndTargetPose(
+    float target_x_mm,
+    float target_y_mm,
+    float target_h_deg
+)
 {
-  Robot_Pose2D pose = Robot_GetPoseSnapshot();
-  uint32_t pose_age_ms = pose.valid ? (uint32_t)(now_ms - pose.rx_t_ms) : 0u;
-  int32_t h_mrad_for_print = Robot_RadToMradForPrint(pose.h_rad);
-  uint32_t h_abs_mrad = Robot_AbsI32ToU32(h_mrad_for_print);
+  Robot_Pose2D pose;
+  (void)RobotControl_GetPoseSnapshot(&pose);
+  int32_t current_h_mdeg = Robot_RadToMdegForPrint(pose.h_rad);
+  int32_t target_h_mdeg = Robot_DegToMdegForPrint(target_h_deg);
+  uint32_t current_h_abs_mdeg = Robot_AbsI32ToU32(current_h_mdeg);
+  uint32_t target_h_abs_mdeg = Robot_AbsI32ToU32(target_h_mdeg);
 
-  printf("pose[valid=%u seq=%u sensor_t=%lums age=%lums status=0x%04x x=%ld y=%ld h=%s%lu.%03lurad]\r\n",
+  printf("current_pose[valid=%u x=%ld y=%ld h=%s%lu.%03ludeg] target_pose[x=%ld y=%ld h=%s%lu.%03ludeg]\r\n",
          pose.valid ? 1u : 0u,
-         (unsigned int)pose.seq,
-         (unsigned long)pose.sensor_t_ms,
-         (unsigned long)pose_age_ms,
-         (unsigned int)pose.status_flags,
          (long)pose.x_mm,
          (long)pose.y_mm,
-         h_mrad_for_print < 0 ? "-" : "",
-         (unsigned long)(h_abs_mrad / 1000u),
-         (unsigned long)(h_abs_mrad % 1000u));
-}
-
-static void Robot_PrintSensorSample(const Algorithm_SensorSample *sample)
-{
-  const Algorithm_Tsd10 *tsd = &sample->tsd;
-  const Algorithm_ColorRaw *color = &sample->color;
-  Algorithm_ColorDetection color_detection = Algorithm_DetectBallColorFromRgb(
-      color->red,
-      color->green,
-      color->blue
-  );
-  uint32_t hue_mdeg = Robot_HueDegToMdegForPrint(color_detection.hue_deg);
-  uint32_t now_ms = HAL_GetTick();
-  uint32_t color_age_ms = color->valid ? (uint32_t)(now_ms - color->rx_t_ms) : 0u;
-
-  printf("tsd10[status=%d ch0=%u(valid=%u res=0x%02x) ch1=%u(valid=%u res=0x%02x) ch2=%u(valid=%u res=0x%02x)]\r\n",
-         sample->tsd_status,
-         (unsigned int)tsd->distance_mm[0],
-         tsd->valid[0] ? 1u : 0u,
-         (unsigned int)tsd->rpc_result[0],
-         (unsigned int)tsd->distance_mm[1],
-         tsd->valid[1] ? 1u : 0u,
-         (unsigned int)tsd->rpc_result[1],
-         (unsigned int)tsd->distance_mm[2],
-         tsd->valid[2] ? 1u : 0u,
-         (unsigned int)tsd->rpc_result[2]);
-
-  printf("color[status=%d valid=%u res=0x%02x seq=%u sensor_t=%lums age=%lums c=%u r=%u g=%u b=%u h=%lu.%03lu colordetect=%u name=%s atime=0x%02x gain=%u led=%ums flags=0x%02x]\r\n",
-         sample->color_status,
-         color->valid ? 1u : 0u,
-         (unsigned int)color->rpc_result,
-         (unsigned int)color->seq,
-         (unsigned long)color->sensor_t_ms,
-         (unsigned long)color_age_ms,
-         (unsigned int)color->clear,
-         (unsigned int)color->red,
-         (unsigned int)color->green,
-         (unsigned int)color->blue,
-         (unsigned long)(hue_mdeg / 1000u),
-         (unsigned long)(hue_mdeg % 1000u),
-         (unsigned int)color_detection.color,
-         Algorithm_BallColorName(color_detection.color),
-         (unsigned int)color->atime,
-         (unsigned int)color->gain,
-         (unsigned int)color->led_on_ms,
-         (unsigned int)color->flags);
+         current_h_mdeg < 0 ? "-" : "",
+         (unsigned long)(current_h_abs_mdeg / 1000u),
+         (unsigned long)(current_h_abs_mdeg % 1000u),
+         (long)target_x_mm,
+         (long)target_y_mm,
+         target_h_mdeg < 0 ? "-" : "",
+         (unsigned long)(target_h_abs_mdeg / 1000u),
+         (unsigned long)(target_h_abs_mdeg % 1000u));
 }
 
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
@@ -762,46 +741,33 @@ static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *da
     return;
   }
 
-  g_sensor_pose.seq = data[0];
-  g_sensor_pose.sensor_t_ms = Robot_GetU32Le(&data[1]);
-  g_sensor_pose.x_mm = Robot_GetI32Le(&data[5]);
-  g_sensor_pose.y_mm = Robot_GetI32Le(&data[9]);
-  g_sensor_pose.h_rad = Robot_PoseHeadingToNodeRad(Robot_GetI32Le(&data[13]));
-  g_sensor_pose.status_flags = Robot_GetU16Le(&data[17]);
-  g_sensor_pose.rx_t_ms = HAL_GetTick();
-  g_sensor_pose.valid = true;
+  int32_t sensor_x_mm = Robot_GetI32Le(&data[5]);
+  int32_t sensor_y_mm = Robot_GetI32Le(&data[9]);
+
+  RobotControl_UpdatePose2D(
+      data[0],
+      Robot_GetU32Le(&data[1]),
+      sensor_y_mm,
+      -sensor_x_mm,
+      Robot_PoseHeadingToNodeRad(Robot_GetI32Le(&data[13])),
+      Robot_GetU16Le(&data[17])
+  );
 }
 
-static Robot_Pose2D Robot_GetPoseSnapshot(void)
+static float Robot_PoseHeadingToNodeRad(int32_t h_mrad)
 {
-  Robot_Pose2D pose;
-  uint32_t primask = __get_PRIMASK();
-
-  __disable_irq();
-  pose.valid = g_sensor_pose.valid;
-  pose.seq = g_sensor_pose.seq;
-  pose.sensor_t_ms = g_sensor_pose.sensor_t_ms;
-  pose.rx_t_ms = g_sensor_pose.rx_t_ms;
-  pose.x_mm = g_sensor_pose.x_mm;
-  pose.y_mm = g_sensor_pose.y_mm;
-  pose.h_rad = g_sensor_pose.h_rad;
-  pose.status_flags = g_sensor_pose.status_flags;
-  if (primask == 0u) {
-    __enable_irq();
-  }
-
-  return pose;
+  return -(float)h_mrad * 0.001f;
 }
 
-static float Robot_PoseHeadingToNodeRad(int32_t h_mrad_ccw)
+static int32_t Robot_RadToMdegForPrint(float rad)
 {
-  return -(float)h_mrad_ccw * 0.001f;
+  return Robot_DegToMdegForPrint(rad * 57.2957795130823208768f);
 }
 
-static int32_t Robot_RadToMradForPrint(float rad)
+static int32_t Robot_DegToMdegForPrint(float deg)
 {
-  float h_mrad = rad * 1000.0f;
-  return (int32_t)(h_mrad >= 0.0f ? h_mrad + 0.5f : h_mrad - 0.5f);
+  float h_mdeg = deg * 1000.0f;
+  return (int32_t)(h_mdeg >= 0.0f ? h_mdeg + 0.5f : h_mdeg - 0.5f);
 }
 
 static uint32_t Robot_AbsI32ToU32(int32_t value)
@@ -825,15 +791,6 @@ static uint32_t Robot_GetU32Le(const uint8_t *p)
 static int32_t Robot_GetI32Le(const uint8_t *p)
 {
   return (int32_t)Robot_GetU32Le(p);
-}
-
-static uint32_t Robot_HueDegToMdegForPrint(float hue_deg)
-{
-  if (hue_deg <= 0.0f) {
-    return 0u;
-  }
-
-  return (uint32_t)(hue_deg * 1000.0f + 0.5f);
 }
 
 /* USER CODE END 4 */
