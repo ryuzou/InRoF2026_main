@@ -194,11 +194,20 @@ int main(void)
         0
     );
 
+
     Robot_Pose2D pose;
     while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
       // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
       HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
     }
+    (void)RobotControl_IssueMoveSegment_mm(
+        (float)pose.x_mm,
+        (float)pose.y_mm,
+        250,
+        550
+    );
+    while (!RobotControl_IsCommandComplete()) {}
+    while (1){}
 
     (void)RobotControl_IssueMoveSegment_mm(
         (float)pose.x_mm,

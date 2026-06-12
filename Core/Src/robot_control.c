@@ -522,7 +522,7 @@ static void RobotControl_ControlStep(void)
     v = speed * command.direction;
 
     w = RobotControl_ClampFloat(
-        v * (-command.k1 * e - command.k2 * th_error),
+        speed * (-command.k1 * e - command.k2 * th_error),
         -ROBOT_CONTROL_W_GO_MAX_RAD_S,
         ROBOT_CONTROL_W_GO_MAX_RAD_S
     );
