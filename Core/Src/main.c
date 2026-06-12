@@ -44,8 +44,12 @@ typedef struct {
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
+#define ROBOT_POSE_SET_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_POSITION_PRINT_PERIOD_MS 200u
 #define ROBOT_POSITION_SQUARE_SIDE_MM  500.0f
+#define ROBOT_INITIAL_POSE_X_MM        250
+#define ROBOT_INITIAL_POSE_Y_MM        250
+#define ROBOT_INITIAL_POSE_H_MRAD      0
 
 #define TOPIC_POSE2D             0x10u
 
@@ -85,6 +89,8 @@ static void MX_LPUART1_UART_Init(void);
 static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
+static void Robot_SetCurrentPose(int32_t x_mm, int32_t y_mm, int32_t h_mrad);
+static void Robot_CallSensorCommandOrError(uint8_t cmd, int32_t arg);
 static void Robot_PrintCurrentAndTargetPose(
     float target_x_mm,
     float target_y_mm,
@@ -179,6 +185,42 @@ int main(void)
       {0.0f, 0.0f, -90.0f, 0.0f},
   };
   const uint32_t square_count = sizeof(square) / sizeof(square[0]);
+
+  Robot_SetCurrentPose(
+      250,
+      -250,
+      0
+  );
+
+  Robot_Pose2D pose;
+  while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
+    // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+    HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+  }
+
+  (void)RobotControl_IssueMoveSegment_mm(
+      (float)pose.x_mm,
+      (float)pose.y_mm,
+      300,
+      250
+  );
+  while (!RobotControl_IsCommandComplete()) {}
+  (void)RobotControl_IssueTurnTo_deg(90);
+  while (!RobotControl_IsCommandComplete()) {}
+  (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
+  (void)RobotControl_IssueMoveSegment_mm(
+      (float)pose.x_mm,
+      (float)pose.y_mm,
+      880,
+      250
+  );
+  Board_DCMotorRackOpenUntilLimit();
+  while (!RobotControl_IsCommandComplete()) {}
+  Board_DCMotorSwingLowerUntilLimit();
+  Board_DCMotorRackCloseUntilLimit();
+  Board_DCMotorSwingRaiseUntilLimit();
+
+  while (1){}
 
   // Board_DCMotorRackCloseUntilLimit();
 
@@ -714,6 +756,30 @@ static void Robot_SendStartCommandToRemoteNodes(void)
     volatile uint8_t servo_result = canrpc_result(servo_handle);
     (void)sensor_result;
     (void)servo_result;
+    Error_Handler();
+  }
+}
+
+static void Robot_SetCurrentPose(int32_t x_mm, int32_t y_mm, int32_t h_mrad)
+{
+  Robot_CallSensorCommandOrError(CMD_POSE_STAGE_X_MM, -y_mm);
+  Robot_CallSensorCommandOrError(CMD_POSE_STAGE_Y_MM, x_mm);
+  Robot_CallSensorCommandOrError(CMD_POSE_STAGE_H_MRAD, -h_mrad);
+  Robot_CallSensorCommandOrError(CMD_POSE_SET_CURRENT, 0);
+
+  RobotControl_UpdatePose2D(
+      0u,
+      board_millis(),
+      x_mm,
+      y_mm,
+      (float)h_mrad * 0.001f,
+      0u
+  );
+}
+
+static void Robot_CallSensorCommandOrError(uint8_t cmd, int32_t arg)
+{
+  if (canrpc_call_wait(NODE_SENSOR, cmd, arg, ROBOT_POSE_SET_CANRPC_TIMEOUT_MS) != 0) {
     Error_Handler();
   }
 }
