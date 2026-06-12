@@ -37,8 +37,7 @@
 /* USER CODE BEGIN PD */
 #define ROBOT_TEST_RACK_LIMIT_HOLD_MS  1000u
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
-#define ROBOT_SENSOR_READ_PERIOD_MS    3000u
-#define ROBOT_SENSOR_PRINT_PERIOD_MS   1000u
+#define ROBOT_POSE_PRINT_PERIOD_MS     1000u
 #define ROBOT_SENSOR_CANRPC_TIMEOUT_MS 1000u
 
 #define CMD_TSD_READ             0x10u
@@ -109,25 +108,9 @@ typedef struct {
   uint8_t flags;
 } Robot_ColorRaw;
 
-typedef struct {
-  uint32_t total_count;
-  uint32_t pose_seen_count;
-  uint32_t pose_accept_count;
-  uint32_t pose_short_count;
-  uint32_t tsd_count;
-  uint32_t color_count;
-  uint32_t other_topic_count;
-  uint32_t other_node_count;
-  uint32_t last_rx_t_ms;
-  uint8_t last_node;
-  uint8_t last_topic;
-  uint8_t last_len;
-} Robot_PubDebug;
-
 static Robot_Pose2D g_sensor_pose;
 static Robot_Tsd10 g_sensor_tsd;
 static Robot_ColorRaw g_sensor_color;
-static Robot_PubDebug g_pub_debug;
 
 /* USER CODE END PV */
 
@@ -142,9 +125,9 @@ static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
-static void Robot_InitSensorTestState(void);
-static void Robot_RequestSensorValues(void);
-static void Robot_PrintSensorValues(uint32_t now_ms);
+static void Robot_InitSensorTestState(void) __attribute__((unused));
+static void Robot_RequestSensorValues(void) __attribute__((unused));
+static void Robot_PrintPose(uint32_t now_ms);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
 static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
@@ -204,7 +187,6 @@ int main(void)
   Board_DCMotorSwingStop();
   Board_DCMotorRackStop();
   canrpc_init(NODE_MASTER);
-  Robot_InitSensorTestState();
   if (!canrpc_start(NODE_MASTER)) {
     Error_Handler();
   }
@@ -213,11 +195,8 @@ int main(void)
   Board_WaitForStartSwitchInterrupt();
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
-  uint32_t next_sensor_read_ms = HAL_GetTick();
-  uint32_t next_sensor_print_ms = HAL_GetTick() + ROBOT_SENSOR_PRINT_PERIOD_MS;
+  uint32_t next_pose_print_ms = HAL_GetTick() + ROBOT_POSE_PRINT_PERIOD_MS;
 
-  // Board_DCMotorRackOpenUntilLimit();
-  // Board_DCMotorRackCloseUntilLimit();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -230,17 +209,10 @@ int main(void)
     canrpc_poll();
 
     uint32_t now_ms = HAL_GetTick();
-    if (Robot_TimeReached(now_ms, next_sensor_read_ms)) {
-      next_sensor_read_ms = now_ms + ROBOT_SENSOR_READ_PERIOD_MS;
-      Robot_RequestSensorValues();
+    if (Robot_TimeReached(now_ms, next_pose_print_ms)) {
+      next_pose_print_ms = now_ms + ROBOT_POSE_PRINT_PERIOD_MS;
+      Robot_PrintPose(now_ms);
     }
-
-    now_ms = HAL_GetTick();
-    if (Robot_TimeReached(now_ms, next_sensor_print_ms)) {
-      next_sensor_print_ms = now_ms + ROBOT_SENSOR_PRINT_PERIOD_MS;
-      Robot_PrintSensorValues(now_ms);
-    }
-    // Robot_RunRackLimitSwitchTest();
   }
   /* USER CODE END 3 */
 }
@@ -750,147 +722,35 @@ static void Robot_RequestSensorValues(void)
   }
 }
 
-static void Robot_PrintSensorValues(uint32_t now_ms)
+static void Robot_PrintPose(uint32_t now_ms)
 {
   uint32_t pose_age_ms = g_sensor_pose.valid ? (uint32_t)(now_ms - g_sensor_pose.rx_t_ms) : 0u;
-  uint32_t color_age_ms = g_sensor_color.valid ? (uint32_t)(now_ms - g_sensor_color.rx_t_ms) : 0u;
-  uint32_t pub_age_ms = (g_pub_debug.total_count != 0u) ?
-                        (uint32_t)(now_ms - g_pub_debug.last_rx_t_ms) : 0u;
-  Board_CanIrqDebug can_irq = {0};
-  Board_CanIrqDebugSnapshot(&can_irq);
-  uint32_t can_irq_age_ms = (can_irq.fifo1_count != 0u) ?
-                            (uint32_t)(now_ms - can_irq.last_rx_t_ms) : 0u;
 
-  printf("pose[%u seq=%u age=%lums st=0x%04x x=%ld y=%ld h=%ld] \r\n"
-         "tsd[0:%u r=0x%02x 1:%u r=0x%02x 2:%u r=0x%02x pubseq=%u fl=0x%02x] \r\n"
-         "color[%u seq=%u age=%lums C=%u R=%u G=%u B=%u at=0x%02x gain=%u led=%ums fl=0x%02x r=0x%02x]\r\n"
-         "pub[total=%lu last=%02x:%02x len=%u age=%lums pose=%lu/%lu short=%lu tsd=%lu color=%lu other=%lu node=%lu drop=%lu]\r\n"
-         "irq[fifo1=%lu lastid=0x%03x topic=0x%02x rawlen=%u publen=%u age=%lums sensorpub=%lu color=%lu pose=%lu short=%lu]\r\n\r\n\r\n",
+  printf("pose[valid=%u seq=%u sensor_t=%lums age=%lums status=0x%04x x=%ld y=%ld h=%ld]\r\n",
          g_sensor_pose.valid ? 1u : 0u,
          (unsigned int)g_sensor_pose.seq,
+         (unsigned long)g_sensor_pose.sensor_t_ms,
          (unsigned long)pose_age_ms,
          (unsigned int)g_sensor_pose.status_flags,
          (long)g_sensor_pose.x_mm,
          (long)g_sensor_pose.y_mm,
-         (long)g_sensor_pose.h_mrad,
-         (unsigned int)g_sensor_tsd.distance_mm[0],
-         (unsigned int)g_sensor_tsd.rpc_result[0],
-         (unsigned int)g_sensor_tsd.distance_mm[1],
-         (unsigned int)g_sensor_tsd.rpc_result[1],
-         (unsigned int)g_sensor_tsd.distance_mm[2],
-         (unsigned int)g_sensor_tsd.rpc_result[2],
-         (unsigned int)g_sensor_tsd.pub_seq,
-         (unsigned int)g_sensor_tsd.pub_flags,
-         g_sensor_color.valid ? 1u : 0u,
-         (unsigned int)g_sensor_color.seq,
-         (unsigned long)color_age_ms,
-         (unsigned int)g_sensor_color.clear,
-         (unsigned int)g_sensor_color.red,
-         (unsigned int)g_sensor_color.green,
-         (unsigned int)g_sensor_color.blue,
-         (unsigned int)g_sensor_color.atime,
-         (unsigned int)g_sensor_color.gain,
-         (unsigned int)g_sensor_color.led_on_ms,
-         (unsigned int)g_sensor_color.flags,
-         (unsigned int)g_sensor_color.rpc_result,
-         (unsigned long)g_pub_debug.total_count,
-         (unsigned int)g_pub_debug.last_node,
-         (unsigned int)g_pub_debug.last_topic,
-         (unsigned int)g_pub_debug.last_len,
-         (unsigned long)pub_age_ms,
-         (unsigned long)g_pub_debug.pose_accept_count,
-         (unsigned long)g_pub_debug.pose_seen_count,
-         (unsigned long)g_pub_debug.pose_short_count,
-         (unsigned long)g_pub_debug.tsd_count,
-         (unsigned long)g_pub_debug.color_count,
-         (unsigned long)g_pub_debug.other_topic_count,
-         (unsigned long)g_pub_debug.other_node_count,
-         (unsigned long)canrpc_pub_dropped(),
-         (unsigned long)can_irq.fifo1_count,
-         (unsigned int)can_irq.last_id,
-         (unsigned int)can_irq.last_topic,
-         (unsigned int)can_irq.last_len,
-         (unsigned int)can_irq.last_pub_len,
-         (unsigned long)can_irq_age_ms,
-         (unsigned long)can_irq.sensor_pub_count,
-         (unsigned long)can_irq.color_raw_count,
-         (unsigned long)can_irq.pose2d_count,
-         (unsigned long)can_irq.pub_short_count);
+         (long)g_sensor_pose.h_mrad);
 }
 
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
 {
-  if (data == NULL) {
+  if (node != NODE_SENSOR || topic != TOPIC_POSE2D || data == NULL || len < 19u) {
     return;
   }
 
-  g_pub_debug.total_count++;
-  g_pub_debug.last_node = node;
-  g_pub_debug.last_topic = topic;
-  g_pub_debug.last_len = len;
-  g_pub_debug.last_rx_t_ms = HAL_GetTick();
-
-  if (node != NODE_SENSOR) {
-    g_pub_debug.other_node_count++;
-    return;
-  }
-
-  switch (topic) {
-  case TOPIC_POSE2D:
-    g_pub_debug.pose_seen_count++;
-    if (len < 19u) {
-      g_pub_debug.pose_short_count++;
-      return;
-    }
-    g_sensor_pose.seq = data[0];
-    g_sensor_pose.sensor_t_ms = Robot_GetU32Le(&data[1]);
-    g_sensor_pose.x_mm = Robot_GetI32Le(&data[5]);
-    g_sensor_pose.y_mm = Robot_GetI32Le(&data[9]);
-    g_sensor_pose.h_mrad = Robot_GetI32Le(&data[13]);
-    g_sensor_pose.status_flags = Robot_GetU16Le(&data[17]);
-    g_sensor_pose.rx_t_ms = HAL_GetTick();
-    g_sensor_pose.valid = true;
-    g_pub_debug.pose_accept_count++;
-    break;
-
-  case TOPIC_TSD_ALL:
-    g_pub_debug.tsd_count++;
-    if (len < 12u) {
-      return;
-    }
-    g_sensor_tsd.pub_seq = data[0];
-    g_sensor_tsd.sensor_t_ms = Robot_GetU32Le(&data[1]);
-    for (uint8_t i = 0; i < 3u; i++) {
-      g_sensor_tsd.distance_mm[i] = Robot_GetU16Le(&data[5u + (uint8_t)(i * 2u)]);
-      g_sensor_tsd.valid[i] = ((data[11] & (uint8_t)(1u << i)) != 0u);
-    }
-    g_sensor_tsd.pub_flags = data[11];
-    g_sensor_tsd.rx_t_ms = HAL_GetTick();
-    break;
-
-  case TOPIC_COLOR_RAW:
-    g_pub_debug.color_count++;
-    if (len < 17u) {
-      return;
-    }
-    g_sensor_color.seq = data[0];
-    g_sensor_color.sensor_t_ms = Robot_GetU32Le(&data[1]);
-    g_sensor_color.clear = Robot_GetU16Le(&data[5]);
-    g_sensor_color.red = Robot_GetU16Le(&data[7]);
-    g_sensor_color.green = Robot_GetU16Le(&data[9]);
-    g_sensor_color.blue = Robot_GetU16Le(&data[11]);
-    g_sensor_color.atime = data[13];
-    g_sensor_color.gain = data[14];
-    g_sensor_color.led_on_ms = data[15];
-    g_sensor_color.flags = data[16];
-    g_sensor_color.rx_t_ms = HAL_GetTick();
-    g_sensor_color.valid = true;
-    break;
-
-  default:
-    g_pub_debug.other_topic_count++;
-    break;
-  }
+  g_sensor_pose.seq = data[0];
+  g_sensor_pose.sensor_t_ms = Robot_GetU32Le(&data[1]);
+  g_sensor_pose.x_mm = Robot_GetI32Le(&data[5]);
+  g_sensor_pose.y_mm = Robot_GetI32Le(&data[9]);
+  g_sensor_pose.h_mrad = Robot_GetI32Le(&data[13]);
+  g_sensor_pose.status_flags = Robot_GetU16Le(&data[17]);
+  g_sensor_pose.rx_t_ms = HAL_GetTick();
+  g_sensor_pose.valid = true;
 }
 
 static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms)
