@@ -180,6 +180,8 @@ int main(void)
   };
   const uint32_t square_count = sizeof(square) / sizeof(square[0]);
 
+  // Board_DCMotorRackCloseUntilLimit();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -202,18 +204,28 @@ int main(void)
           square[i].x_mm,
           square[i].y_mm
       );
+      // Board_DCMotorRackOpenUntilLimit();
+      Board_DCMotorSwingLowerUntilLimit();
+      uint8_t servo_result = CANRPC_RES_INVALID;
+      int servo_status = Algorithm_ServoOpenCloseBlocking(&servo_result, 300);
+      printf("servo_open_close[status=%d res=0x%02x]\r\n",
+             servo_status,
+             (unsigned int)servo_result);
       while (!RobotControl_IsCommandComplete()) {
-        Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
-        HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+        // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+        // HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
       }
-      Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+      // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
 
       (void)RobotControl_IssueTurnTo_deg(square[i].turn_h_deg);
+      // Board_DCMotorRackCloseUntilLimit();
+      Board_DCMotorSwingRaiseUntilLimit();
+      (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
       while (!RobotControl_IsCommandComplete()) {
-        Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
-        HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+        // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
+        // HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
       }
-      Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
+      // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].turn_h_deg);
     }
   }
   /* USER CODE END 3 */
