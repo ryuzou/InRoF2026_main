@@ -27,18 +27,13 @@
 #include "robot_can.h"
 #include "robot_control.h"
 #include "sequence.h"
+#include <stddef.h>
 #include <stdio.h>
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-  float x_mm;
-  float y_mm;
-  float move_h_deg;
-  float turn_h_deg;
-} Robot_SquareStep;
 
 /* USER CODE END PTD */
 
@@ -202,71 +197,35 @@ int main(void)
     Sequence_CallibrateRP2();
     Sequence_PlaceStoredBalls();
 
-    Sequence_IssueMoveToRP2();
+    static const struct {
+      float x_mm;
+      float y_mm;
+      float heading_deg;
+    } robot_rp2_collection_points[] = {
+        {1110.0f, 325.0f, 0.0f},
+        {1570.0f, 325.0f, 0.0f},
+        {1110.0f, 650.0f, 0.0f},
+        {1570.0f, 650.0f, 0.0f},
+        {1110.0f, 975.0f, 0.0f},
+        {1570.0f, 975.0f, 0.0f},
+    };
+
+    for (size_t i = 0; i < (sizeof(robot_rp2_collection_points) / sizeof(robot_rp2_collection_points[0])); i++) {
+      Sequence_IssueMoveToRP2();
       Board_DCMotorRackOpenUntilLimit();
-    Sequence_WaitForRobotCommand();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1110, 325, 0);
-    Sequence_WaitForRobotCommand();
-    Sequence_CollectBalls();
-    Sequence_IssueMoveToRP2();
-    Sequence_WaitForRobotCommand();
-    Sequence_CallibrateRP2();
-    Sequence_PlaceStoredBalls();
-
-    Sequence_IssueMoveToRP2();
-    Board_DCMotorRackOpenUntilLimit();
-    Sequence_WaitForRobotCommand();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1570, 325, 0);
-    Sequence_WaitForRobotCommand();
-    Sequence_CollectBalls();
-    Sequence_IssueMoveToRP2();
-    Sequence_WaitForRobotCommand();
-    Sequence_CallibrateRP2();
-    Sequence_PlaceStoredBalls();
-
-    Sequence_IssueMoveToRP2();
-    Board_DCMotorRackOpenUntilLimit();
-    Sequence_WaitForRobotCommand();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1110, 650, 0);
-    Sequence_WaitForRobotCommand();
-    Sequence_CollectBalls();
-    Sequence_IssueMoveToRP2();
-    Sequence_WaitForRobotCommand();
-    Sequence_CallibrateRP2();
-    Sequence_PlaceStoredBalls();
-
-    Sequence_IssueMoveToRP2();
-    Board_DCMotorRackOpenUntilLimit();
-    Sequence_WaitForRobotCommand();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1570, 650, 0);
-    Sequence_WaitForRobotCommand();
-    Sequence_CollectBalls();
-    Sequence_IssueMoveToRP2();
-    Sequence_WaitForRobotCommand();
-    Sequence_CallibrateRP2();
-    Sequence_PlaceStoredBalls();
-
-    Sequence_IssueMoveToRP2();
-    Board_DCMotorRackOpenUntilLimit();
-    Sequence_WaitForRobotCommand();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1110, 975, 0);
-    Sequence_WaitForRobotCommand();
-    Sequence_CollectBalls();
-    Sequence_IssueMoveToRP2();
-    Sequence_WaitForRobotCommand();
-    Sequence_CallibrateRP2();
-    Sequence_PlaceStoredBalls();
-
-    Sequence_IssueMoveToRP2();
-    Board_DCMotorRackOpenUntilLimit();
-    Sequence_WaitForRobotCommand();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1570, 975, 0);
-    Sequence_WaitForRobotCommand();
-    Sequence_CollectBalls();
-    Sequence_IssueMoveToRP2();
-    Sequence_WaitForRobotCommand();
-    Sequence_CallibrateRP2();
-    Sequence_PlaceStoredBalls();
+      Sequence_WaitForRobotCommand();
+      (void)RobotControl_IssueMoveToPose_mm_deg(
+          robot_rp2_collection_points[i].x_mm,
+          robot_rp2_collection_points[i].y_mm,
+          robot_rp2_collection_points[i].heading_deg
+      );
+      Sequence_WaitForRobotCommand();
+      Sequence_CollectBalls();
+      Sequence_IssueMoveToRP2();
+      Sequence_WaitForRobotCommand();
+      Sequence_CallibrateRP2();
+      Sequence_PlaceStoredBalls();
+    }
 
     while (1){} //stop loop
   }
