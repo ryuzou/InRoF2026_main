@@ -117,6 +117,7 @@ void Algorithm_RobotSetVelocity(float linear_mm_s, float angular_rad_s);
 void Algorithm_RobotDriveStraight_mm_s(int32_t speed_mm_s);
 void Algorithm_RobotTurnInPlace_rad_s(float angular_rad_s);
 void Algorithm_RobotStop(void);
+int Algorithm_ServoOpenCloseBlocking(uint8_t *rpc_result, uint32_t timeout_ms);
 int Algorithm_ReadTsd10Blocking(Algorithm_Tsd10 *out, uint32_t timeout_ms);
 int Algorithm_ReadColorRawBlocking(Algorithm_ColorRaw *out, uint32_t timeout_ms);
 int Algorithm_ReadSensorSampleBlocking(Algorithm_SensorSample *out, uint32_t timeout_ms);

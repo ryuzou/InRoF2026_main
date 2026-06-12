@@ -115,6 +115,27 @@ void Algorithm_RobotStop(void)
   Board_StepperStopAll();
 }
 
+int Algorithm_ServoOpenCloseBlocking(uint8_t *rpc_result, uint32_t timeout_ms)
+{
+  if (rpc_result != NULL) {
+    *rpc_result = CANRPC_RES_INVALID;
+  }
+
+  int handle = canrpc_call(NODE_SERVO, CMD_SERVO_OPEN_CLOSE, 0);
+  if (handle < 0) {
+    if (rpc_result != NULL) {
+      *rpc_result = CANRPC_RES_BUSY;
+    }
+    return CANRPC_ERR_PARAM;
+  }
+
+  int rc = canrpc_wait(CANRPC_H(handle), timeout_ms);
+  if (rpc_result != NULL) {
+    *rpc_result = canrpc_result(handle);
+  }
+  return rc;
+}
+
 int Algorithm_ReadTsd10Blocking(Algorithm_Tsd10 *out, uint32_t timeout_ms)
 {
   if (out == NULL) {

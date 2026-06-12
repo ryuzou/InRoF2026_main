@@ -50,6 +50,23 @@ its waiting or bring-up state and enter the competition-ready state. If the
 receiver does not implement this command, CANRPC returns `CANRPC_RES_NO_HANDLER`.
 If the receiver is not online, the caller sees `CANRPC_RES_NO_ACK`.
 
+## Servo Commands
+
+Defined in `Core/Inc/robot_can.h` and implemented by `InRoF2026_Servo`.
+
+| Command | ID | arg | ret | Notes |
+| --- | ---: | ---: | ---: | --- |
+| `CMD_SERVO_OPEN_CLOSE` | `0x10` | `0` | `0` | Moves the servo from the initial/closed `78 deg` position to `120 deg`, waits `500 ms`, then returns to `78 deg` |
+
+`InRoF2026_Servo` sets the servo to `78 deg` during initialization. The
+command handler sends DONE only after the servo has returned to `78 deg`, so a
+caller that needs blocking behavior should use `canrpc_call_wait()` or
+`canrpc_call_wait_ret()` with a timeout longer than `500 ms`, for example:
+
+```c
+int rc = canrpc_call_wait(NODE_SERVO, CMD_SERVO_OPEN_CLOSE, 0, 1000u);
+```
+
 ## Master Startup Sequence
 
 `InRoF2026_main` starts CANRPC as `NODE_MASTER`. After `START_SW` is pressed,

@@ -9,5 +9,6 @@
 
 #define CMD_PING          0x00u
 #define CMD_SYSTEM_START  0x01u
+#define CMD_SERVO_OPEN_CLOSE  0x10u
 
 #endif /* ROBOT_CAN_H */

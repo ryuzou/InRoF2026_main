@@ -40,6 +40,7 @@
 #define ROBOT_TEST_RACK_LIMIT_HOLD_MS  1000u
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_SENSOR_CANRPC_TIMEOUT_MS 1000u
+#define ROBOT_SERVO_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_SENSOR_TEST_PERIOD_MS    1000u
 
 #define TOPIC_POSE2D             0x10u
@@ -190,6 +191,11 @@ int main(void)
     (void)Algorithm_ReadSensorSampleBlocking(&sample, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
     Robot_PrintPose(HAL_GetTick());
     Robot_PrintSensorSample(&sample);
+    uint8_t servo_result = CANRPC_RES_INVALID;
+    int servo_status = Algorithm_ServoOpenCloseBlocking(&servo_result, ROBOT_SERVO_CANRPC_TIMEOUT_MS);
+    printf("servo_open_close[status=%d res=0x%02x]\r\n",
+           servo_status,
+           (unsigned int)servo_result);
     HAL_Delay(ROBOT_SENSOR_TEST_PERIOD_MS);
   }
   /* USER CODE END 3 */
