@@ -1,6 +1,7 @@
 #include "board.h"
 
 #include "canrpc.h"
+#include "stdio.h"
 
 #include <string.h>
 
@@ -338,14 +339,11 @@ void Board_DCMotorRackOpenUntilLimit(void)
   bool limit_was_pressed = Board_LimitSwitchRackOpenIsPressed();
 
   Board_ClearLimitSwitchRackOpenInterruptStatus();
-  Board_DCMotorRackStart(BOARD_DCMOTOR_RACK_OPEN_DIRECTION);
 
-  if (limit_was_pressed) {
-    Board_DCMotorRackWaitForOpenLimitRelease();
-    Board_ClearLimitSwitchRackOpenInterruptStatus();
+  if (!limit_was_pressed) {
+    Board_DCMotorRackStart(BOARD_DCMOTOR_RACK_OPEN_DIRECTION);
+    Board_WaitForLimitSwitchRackOpenInterrupt();
   }
-
-  Board_WaitForLimitSwitchRackOpenInterrupt();
   Board_DCMotorRackStop();
 }
 
@@ -354,14 +352,11 @@ void Board_DCMotorRackCloseUntilLimit(void)
   bool limit_was_pressed = Board_LimitSwitchRackCloseIsPressed();
 
   Board_ClearLimitSwitchRackCloseInterruptStatus();
-  Board_DCMotorRackStart(BOARD_DCMOTOR_RACK_CLOSE_DIRECTION);
 
-  if (limit_was_pressed) {
-    Board_DCMotorRackWaitForCloseLimitRelease();
-    Board_ClearLimitSwitchRackCloseInterruptStatus();
+  if (!limit_was_pressed) {
+    Board_DCMotorRackStart(BOARD_DCMOTOR_RACK_CLOSE_DIRECTION);
+    Board_WaitForLimitSwitchRackCloseInterrupt();
   }
-
-  Board_WaitForLimitSwitchRackCloseInterrupt();
   Board_DCMotorRackStop();
 }
 
