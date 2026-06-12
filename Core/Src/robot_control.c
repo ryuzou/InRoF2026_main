@@ -39,7 +39,7 @@
 #endif
 
 #ifndef ROBOT_CONTROL_V_MAX_MM_S
-#define ROBOT_CONTROL_V_MAX_MM_S  250.0f
+#define ROBOT_CONTROL_V_MAX_MM_S  500.0f
 #endif
 
 #ifndef ROBOT_CONTROL_A_MAX_MM_S2
