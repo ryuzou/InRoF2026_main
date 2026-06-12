@@ -24,6 +24,7 @@
 #include "board.h"
 #include "canrpc.h"
 #include "robot_can.h"
+#include "robot_control.h"
 #include <stdio.h>
 
 /* USER CODE END Includes */
@@ -69,6 +70,7 @@ UART_HandleTypeDef hlpuart1;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim7;
 
 /* USER CODE BEGIN PV */
 typedef struct {
@@ -108,7 +110,7 @@ typedef struct {
   uint8_t flags;
 } Robot_ColorRaw;
 
-static Robot_Pose2D g_sensor_pose;
+static volatile Robot_Pose2D g_sensor_pose;
 static Robot_Tsd10 g_sensor_tsd;
 static Robot_ColorRaw g_sensor_color;
 
@@ -123,6 +125,7 @@ static void MX_DAC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
 static void Robot_InitSensorTestState(void) __attribute__((unused));
@@ -130,6 +133,7 @@ static void Robot_RequestSensorValues(void) __attribute__((unused));
 static void Robot_PrintPose(uint32_t now_ms);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
 static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms);
+static Robot_Pose2D Robot_GetPoseSnapshot(void);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
 static uint32_t Robot_GetU32Le(const uint8_t *p);
 static int32_t Robot_GetI32Le(const uint8_t *p);
@@ -181,6 +185,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   MX_LPUART1_UART_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
   Board_Init();
   Board_StepperStopAll();
@@ -191,6 +196,10 @@ int main(void)
     Error_Handler();
   }
   canrpc_set_pub_handler(Robot_OnCanrpcPublish);
+  RobotControl_Init();
+  if (HAL_TIM_Base_Start_IT(&htim7) != HAL_OK) {
+    Error_Handler();
+  }
   Board_ClearStartSwitchInterruptStatus();
   Board_WaitForStartSwitchInterrupt();
   Robot_SendStartCommandToRemoteNodes();
@@ -206,8 +215,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    canrpc_poll();
-
     uint32_t now_ms = HAL_GetTick();
     if (Robot_TimeReached(now_ms, next_pose_print_ms)) {
       next_pose_print_ms = now_ms + ROBOT_POSE_PRINT_PERIOD_MS;
@@ -562,6 +569,44 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 79;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 199;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -724,17 +769,18 @@ static void Robot_RequestSensorValues(void)
 
 static void Robot_PrintPose(uint32_t now_ms)
 {
-  uint32_t pose_age_ms = g_sensor_pose.valid ? (uint32_t)(now_ms - g_sensor_pose.rx_t_ms) : 0u;
+  Robot_Pose2D pose = Robot_GetPoseSnapshot();
+  uint32_t pose_age_ms = pose.valid ? (uint32_t)(now_ms - pose.rx_t_ms) : 0u;
 
   printf("pose[valid=%u seq=%u sensor_t=%lums age=%lums status=0x%04x x=%ld y=%ld h=%ld]\r\n",
-         g_sensor_pose.valid ? 1u : 0u,
-         (unsigned int)g_sensor_pose.seq,
-         (unsigned long)g_sensor_pose.sensor_t_ms,
+         pose.valid ? 1u : 0u,
+         (unsigned int)pose.seq,
+         (unsigned long)pose.sensor_t_ms,
          (unsigned long)pose_age_ms,
-         (unsigned int)g_sensor_pose.status_flags,
-         (long)g_sensor_pose.x_mm,
-         (long)g_sensor_pose.y_mm,
-         (long)g_sensor_pose.h_mrad);
+         (unsigned int)pose.status_flags,
+         (long)pose.x_mm,
+         (long)pose.y_mm,
+         (long)pose.h_mrad);
 }
 
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
@@ -756,6 +802,27 @@ static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *da
 static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms)
 {
   return (int32_t)(now_ms - deadline_ms) >= 0;
+}
+
+static Robot_Pose2D Robot_GetPoseSnapshot(void)
+{
+  Robot_Pose2D pose;
+  uint32_t primask = __get_PRIMASK();
+
+  __disable_irq();
+  pose.valid = g_sensor_pose.valid;
+  pose.seq = g_sensor_pose.seq;
+  pose.sensor_t_ms = g_sensor_pose.sensor_t_ms;
+  pose.rx_t_ms = g_sensor_pose.rx_t_ms;
+  pose.x_mm = g_sensor_pose.x_mm;
+  pose.y_mm = g_sensor_pose.y_mm;
+  pose.h_mrad = g_sensor_pose.h_mrad;
+  pose.status_flags = g_sensor_pose.status_flags;
+  if (primask == 0u) {
+    __enable_irq();
+  }
+
+  return pose;
 }
 
 static uint16_t Robot_GetU16Le(const uint8_t *p)

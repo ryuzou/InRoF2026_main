@@ -467,8 +467,6 @@ int canrpc_wait(uint32_t mask, uint32_t timeout_ms)
     uint32_t start_ms = board_millis();
 
     for (;;) {
-        canrpc_poll();
-
         bool busy = false;
         for (uint8_t i = 0; i < CANRPC_MAX_SLOTS; i++) {
             if ((mask & CANRPC_H(i)) == 0u) {
