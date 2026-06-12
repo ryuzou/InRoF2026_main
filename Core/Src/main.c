@@ -50,7 +50,9 @@ typedef struct {
 #define ROBOT_INITIAL_POSE_X_MM        250
 #define ROBOT_INITIAL_POSE_Y_MM        250
 #define ROBOT_INITIAL_POSE_H_MRAD      0
-#define MAX_BALLS 3
+#define MAX_BALLS 2
+#define ROBOT_BALL_LOAD_RETRY_COUNT  4
+#define ROBOT_BALL_LOAD_RETRY_DELAY_MS  400u
 
 #define TOPIC_POSE2D             0x10u
 
@@ -209,7 +211,9 @@ int main(void)
 
     (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, NULL);
     while (!RobotControl_IsCommandComplete()) {}
-    for (int i = 0; i < MAX_BALLS; i++) {
+    int placed_balls = 0;
+    int empty_read_count = 0;
+    while (placed_balls < MAX_BALLS) {
       Algorithm_ColorDetection color_detection;
       Algorithm_ColorRaw color_raw;
       int color_status = Algorithm_ReadBallColorBlocking(
@@ -218,28 +222,26 @@ int main(void)
           ROBOT_COLOR_READ_TIMEOUT_MS
       );
       if (color_status != 0 || color_detection.color == ALGORITHM_BALL_COLOR_NONE) {
-        (void)RobotControl_IssueMoveToPose_mm_deg(NULL, NULL, 90);
-        while (!RobotControl_IsCommandComplete()) {}
-        Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-      } else {
-        if (color_detection.color == ALGORITHM_BALL_COLOR_RED) {
-          (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, 90);
-          while (!RobotControl_IsCommandComplete()) {}
-          Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-        } else if (color_detection.color == ALGORITHM_BALL_COLOR_YELLOW) {
-          (void)RobotControl_IssueMoveToPose_mm_deg(300, 900, 90);
-          while (!RobotControl_IsCommandComplete()) {}
-          Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-        } else if (color_detection.color == ALGORITHM_BALL_COLOR_BLUE) {
-          (void)RobotControl_IssueMoveToPose_mm_deg(300, 1550, 90);
-          while (!RobotControl_IsCommandComplete()) {}
-          Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
+        empty_read_count++;
+        if (empty_read_count >= ROBOT_BALL_LOAD_RETRY_COUNT) {
+          break;
         }
+        HAL_Delay(ROBOT_BALL_LOAD_RETRY_DELAY_MS);
+        continue;
       }
+
+      empty_read_count = 0;
+      if (color_detection.color == ALGORITHM_BALL_COLOR_RED) {
+        (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, 90);
+      } else if (color_detection.color == ALGORITHM_BALL_COLOR_YELLOW) {
+        (void)RobotControl_IssueMoveToPose_mm_deg(300, 900, 90);
+      } else if (color_detection.color == ALGORITHM_BALL_COLOR_BLUE) {
+        (void)RobotControl_IssueMoveToPose_mm_deg(300, 1550, 90);
+      }
+      while (!RobotControl_IsCommandComplete()) {}
+      Algorithm_ServoOpenCloseBlocking(NULL, 100);
+      placed_balls++;
+      HAL_Delay(ROBOT_BALL_LOAD_RETRY_DELAY_MS);
     }
     (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, 90);
     while (!RobotControl_IsCommandComplete()) {}
