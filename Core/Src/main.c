@@ -177,6 +177,7 @@ int main(void)
   Board_WaitForStartSwitchInterrupt();
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
+  Board_DCMotorRackCloseUntilLimit();
 
   Robot_SetCurrentPose(
       250,
