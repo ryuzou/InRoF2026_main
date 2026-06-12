@@ -177,78 +177,6 @@ int main(void)
   Board_WaitForStartSwitchInterrupt();
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
-  Board_DCMotorRackCloseUntilLimit();
-
-  Robot_SetCurrentPose(
-      250,
-      -250,
-      0
-  );
-
-  Robot_Pose2D pose;
-  while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
-    // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
-    HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
-  }
-
-  (void)RobotControl_IssueMoveSegment_mm(
-      (float)pose.x_mm,
-      (float)pose.y_mm,
-      300,
-      250
-  );
-  Board_DCMotorRackCloseUntilLimit();
-  while (!RobotControl_IsCommandComplete()) {}
-  (void)RobotControl_IssueTurnTo_deg(90);
-  while (!RobotControl_IsCommandComplete()) {}
-  (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-  (void)RobotControl_IssueMoveSegment_mm(
-      (float)pose.x_mm,
-      (float)pose.y_mm,
-      880,
-      250
-  );
-  Board_DCMotorRackOpenUntilLimit();
-  while (!RobotControl_IsCommandComplete()) {}
-  Board_DCMotorSwingLowerUntilLimit();
-  Board_DCMotorRackCloseUntilLimit();
-  Board_DCMotorSwingRaiseUntilLimit();
-
-  (void)RobotControl_IssueMoveSegment_mm(
-    (float)pose.x_mm,
-    (float)pose.y_mm,
-    300,
-    250
-);
-  Board_DCMotorRackOpenUntilLimit();
-  while (!RobotControl_IsCommandComplete()) {}
-  (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-  (void)RobotControl_IssueMoveSegment_mm(
-    (float)pose.x_mm,
-    (float)pose.y_mm,
-    1330,
-    250
-);
-  Board_DCMotorSwingLowerUntilLimit();
-  while (!RobotControl_IsCommandComplete()) {}
-  Board_DCMotorRackCloseUntilLimit();
-  Board_DCMotorSwingRaiseUntilLimit();
-
-
-  (void)RobotControl_IssueMoveSegment_mm(
-    (float)pose.x_mm,
-    (float)pose.y_mm,
-    300,
-    250
-);
-  Board_DCMotorRackOpenUntilLimit();
-  while (!RobotControl_IsCommandComplete()) {}
-  (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-
-
-  while (1){}
 
   /* USER CODE END 2 */
 
@@ -259,6 +187,78 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    Board_DCMotorRackCloseUntilLimit();
+
+    Robot_SetCurrentPose(
+        250,
+        -250,
+        0
+    );
+
+    Robot_Pose2D pose;
+    while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
+      // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
+      HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
+    }
+
+    (void)RobotControl_IssueMoveSegment_mm(
+        (float)pose.x_mm,
+        (float)pose.y_mm,
+        300,
+        250
+    );
+    Board_DCMotorRackCloseUntilLimit();
+    while (!RobotControl_IsCommandComplete()) {}
+    (void)RobotControl_IssueTurnTo_deg(90);
+    while (!RobotControl_IsCommandComplete()) {}
+    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
+    (void)RobotControl_IssueMoveSegment_mm(
+        (float)pose.x_mm,
+        (float)pose.y_mm,
+        880,
+        250
+    );
+    Board_DCMotorRackOpenUntilLimit();
+    while (!RobotControl_IsCommandComplete()) {}
+    Board_DCMotorSwingLowerUntilLimit();
+    Board_DCMotorRackCloseUntilLimit();
+    Board_DCMotorSwingRaiseUntilLimit();
+
+    (void)RobotControl_IssueMoveSegment_mm(
+      (float)pose.x_mm,
+      (float)pose.y_mm,
+      300,
+      250
+  );
+    Board_DCMotorRackOpenUntilLimit();
+    while (!RobotControl_IsCommandComplete()) {}
+    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
+
+    (void)RobotControl_IssueMoveSegment_mm(
+      (float)pose.x_mm,
+      (float)pose.y_mm,
+      1330,
+      250
+  );
+    Board_DCMotorSwingLowerUntilLimit();
+    while (!RobotControl_IsCommandComplete()) {}
+    Board_DCMotorRackCloseUntilLimit();
+    Board_DCMotorSwingRaiseUntilLimit();
+
+
+    (void)RobotControl_IssueMoveSegment_mm(
+      (float)pose.x_mm,
+      (float)pose.y_mm,
+      300,
+      250
+  );
+    Board_DCMotorRackOpenUntilLimit();
+    while (!RobotControl_IsCommandComplete()) {}
+    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
+
+
+
+    while (1){} //stop loop
   }
   /* USER CODE END 3 */
 }
