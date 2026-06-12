@@ -72,7 +72,7 @@ typedef struct {
   uint32_t rx_t_ms;
   int32_t x_mm;
   int32_t y_mm;
-  int32_t h_mrad;
+  float h_rad;
   uint16_t status_flags;
 } Robot_Pose2D;
 
@@ -97,6 +97,9 @@ static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
 static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms);
 static Robot_Pose2D Robot_GetPoseSnapshot(void);
+static float Robot_PoseHeadingToNodeRad(int32_t h_mrad_ccw);
+static int32_t Robot_RadToMradForPrint(float rad);
+static uint32_t Robot_AbsI32ToU32(int32_t value);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
 static uint32_t Robot_GetU32Le(const uint8_t *p);
 static int32_t Robot_GetI32Le(const uint8_t *p);
@@ -686,8 +689,10 @@ static void Robot_PrintPose(uint32_t now_ms)
 {
   Robot_Pose2D pose = Robot_GetPoseSnapshot();
   uint32_t pose_age_ms = pose.valid ? (uint32_t)(now_ms - pose.rx_t_ms) : 0u;
+  int32_t h_mrad_for_print = Robot_RadToMradForPrint(pose.h_rad);
+  uint32_t h_abs_mrad = Robot_AbsI32ToU32(h_mrad_for_print);
 
-  printf("pose[valid=%u seq=%u sensor_t=%lums age=%lums status=0x%04x x=%ld y=%ld h=%ld]\r\n",
+  printf("pose[valid=%u seq=%u sensor_t=%lums age=%lums status=0x%04x x=%ld y=%ld h=%s%lu.%03lurad]\r\n",
          pose.valid ? 1u : 0u,
          (unsigned int)pose.seq,
          (unsigned long)pose.sensor_t_ms,
@@ -695,7 +700,9 @@ static void Robot_PrintPose(uint32_t now_ms)
          (unsigned int)pose.status_flags,
          (long)pose.x_mm,
          (long)pose.y_mm,
-         (long)pose.h_mrad);
+         h_mrad_for_print < 0 ? "-" : "",
+         (unsigned long)(h_abs_mrad / 1000u),
+         (unsigned long)(h_abs_mrad % 1000u));
 }
 
 static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
@@ -746,7 +753,7 @@ static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *da
   g_sensor_pose.sensor_t_ms = Robot_GetU32Le(&data[1]);
   g_sensor_pose.x_mm = Robot_GetI32Le(&data[5]);
   g_sensor_pose.y_mm = Robot_GetI32Le(&data[9]);
-  g_sensor_pose.h_mrad = Robot_GetI32Le(&data[13]);
+  g_sensor_pose.h_rad = Robot_PoseHeadingToNodeRad(Robot_GetI32Le(&data[13]));
   g_sensor_pose.status_flags = Robot_GetU16Le(&data[17]);
   g_sensor_pose.rx_t_ms = HAL_GetTick();
   g_sensor_pose.valid = true;
@@ -769,13 +776,29 @@ static Robot_Pose2D Robot_GetPoseSnapshot(void)
   pose.rx_t_ms = g_sensor_pose.rx_t_ms;
   pose.x_mm = g_sensor_pose.x_mm;
   pose.y_mm = g_sensor_pose.y_mm;
-  pose.h_mrad = g_sensor_pose.h_mrad;
+  pose.h_rad = g_sensor_pose.h_rad;
   pose.status_flags = g_sensor_pose.status_flags;
   if (primask == 0u) {
     __enable_irq();
   }
 
   return pose;
+}
+
+static float Robot_PoseHeadingToNodeRad(int32_t h_mrad_ccw)
+{
+  return -(float)h_mrad_ccw * 0.001f;
+}
+
+static int32_t Robot_RadToMradForPrint(float rad)
+{
+  float h_mrad = rad * 1000.0f;
+  return (int32_t)(h_mrad >= 0.0f ? h_mrad + 0.5f : h_mrad - 0.5f);
+}
+
+static uint32_t Robot_AbsI32ToU32(int32_t value)
+{
+  return (value < 0) ? (uint32_t)(-(value + 1)) + 1u : (uint32_t)value;
 }
 
 static uint16_t Robot_GetU16Le(const uint8_t *p)
