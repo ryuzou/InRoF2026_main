@@ -233,6 +233,34 @@ int Algorithm_ReadColorRawBlocking(Algorithm_ColorRaw *out, uint32_t timeout_ms)
   }
 }
 
+int Algorithm_ReadBallColorBlocking(
+    Algorithm_ColorDetection *out,
+    Algorithm_ColorRaw *raw_out,
+    uint32_t timeout_ms
+)
+{
+  if (out == NULL) {
+    return CANRPC_ERR_PARAM;
+  }
+
+  Algorithm_ColorRaw color;
+  int rc = Algorithm_ReadColorRawBlocking(&color, timeout_ms);
+  if (raw_out != NULL) {
+    *raw_out = color;
+  }
+
+  if (rc != 0) {
+    return rc;
+  }
+
+  if (!color.valid) {
+    return CANRPC_ERR_TIMEOUT;
+  }
+
+  *out = Algorithm_DetectBallColorFromRgb(color.red, color.green, color.blue);
+  return 0;
+}
+
 int Algorithm_ReadSensorSampleBlocking(Algorithm_SensorSample *out, uint32_t timeout_ms)
 {
   if (out == NULL) {

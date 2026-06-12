@@ -120,6 +120,11 @@ void Algorithm_RobotStop(void);
 int Algorithm_ServoOpenCloseBlocking(uint8_t *rpc_result, uint32_t timeout_ms);
 int Algorithm_ReadTsd10Blocking(Algorithm_Tsd10 *out, uint32_t timeout_ms);
 int Algorithm_ReadColorRawBlocking(Algorithm_ColorRaw *out, uint32_t timeout_ms);
+int Algorithm_ReadBallColorBlocking(
+    Algorithm_ColorDetection *out,
+    Algorithm_ColorRaw *raw_out,
+    uint32_t timeout_ms
+);
 int Algorithm_ReadSensorSampleBlocking(Algorithm_SensorSample *out, uint32_t timeout_ms);
 Algorithm_ColorDetection Algorithm_DetectBallColorFromRgb(
     uint16_t r,

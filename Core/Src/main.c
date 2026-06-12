@@ -26,6 +26,7 @@
 #include "canrpc.h"
 #include "robot_can.h"
 #include "robot_control.h"
+#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -44,6 +45,7 @@ typedef struct {
 /* USER CODE BEGIN PD */
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_POSE_SET_CANRPC_TIMEOUT_MS  1000u
+#define ROBOT_COLOR_READ_TIMEOUT_MS  1000u
 #define ROBOT_POSITION_SQUARE_SIDE_MM  500.0f
 #define ROBOT_INITIAL_POSE_X_MM        250
 #define ROBOT_INITIAL_POSE_Y_MM        250
@@ -177,6 +179,26 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    Algorithm_ColorDetection color_detection;
+    Algorithm_ColorRaw color_raw;
+    int color_status = Algorithm_ReadBallColorBlocking(
+        &color_detection,
+        &color_raw,
+        ROBOT_COLOR_READ_TIMEOUT_MS
+    );
+    if (color_status != 0 || color_detection.color == ALGORITHM_BALL_COLOR_NONE) {
+      printf("No colour\r\n");;
+    } else {
+      if (color_detection.color == ALGORITHM_BALL_COLOR_RED) {
+        printf("Red\r\n");
+      } else if (color_detection.color == ALGORITHM_BALL_COLOR_YELLOW) {
+        printf("Yello\r\n");
+      } else if (color_detection.color == ALGORITHM_BALL_COLOR_BLUE) {
+        printf("Blue\r\n");
+      }
+    }
+    HAL_Delay(1000);
+    continue;
 
     Robot_SetCurrentPose(
         250,
@@ -186,8 +208,10 @@ int main(void)
 
 
     (void)RobotControl_IssueMoveToPose_mm_deg(250.0f, 550.0f, 0.0f);
+    Board_DCMotorRackCloseUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
     (void)RobotControl_IssueMoveToPose_mm_deg(500.0f, 550.0f, 0.0f);
+    Board_DCMotorRackOpenUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
     while (1){}
 
