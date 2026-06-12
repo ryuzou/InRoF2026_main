@@ -40,17 +40,9 @@
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_POSE_PRINT_PERIOD_MS     1000u
 #define ROBOT_SENSOR_CANRPC_TIMEOUT_MS 1000u
-
-#define CMD_TSD_READ             0x10u
-#define CMD_TSD_PUBLISH          0x11u
-#define CMD_COLOR_MEASURE        0x20u
+#define ROBOT_SENSOR_TEST_PERIOD_MS    1000u
 
 #define TOPIC_POSE2D             0x10u
-#define TOPIC_TSD_ALL            0x20u
-#define TOPIC_COLOR_RAW          0x30u
-
-#define SENSOR_COLOR_ARG(atime, gain, flags) \
-  ((int32_t)((uint32_t)(atime) | ((uint32_t)(gain) << 8) | ((uint32_t)(flags) << 16)))
 
 /* USER CODE END PD */
 
@@ -84,35 +76,7 @@ typedef struct {
   uint16_t status_flags;
 } Robot_Pose2D;
 
-typedef struct {
-  bool valid[3];
-  uint8_t rpc_result[3];
-  uint16_t distance_mm[3];
-  uint8_t pub_seq;
-  uint8_t pub_flags;
-  uint32_t sensor_t_ms;
-  uint32_t rx_t_ms;
-} Robot_Tsd10;
-
-typedef struct {
-  bool valid;
-  uint8_t seq;
-  uint8_t rpc_result;
-  uint32_t sensor_t_ms;
-  uint32_t rx_t_ms;
-  uint16_t clear;
-  uint16_t red;
-  uint16_t green;
-  uint16_t blue;
-  uint8_t atime;
-  uint8_t gain;
-  uint8_t led_on_ms;
-  uint8_t flags;
-} Robot_ColorRaw;
-
 static volatile Robot_Pose2D g_sensor_pose;
-static Robot_Tsd10 g_sensor_tsd;
-static Robot_ColorRaw g_sensor_color;
 
 /* USER CODE END PV */
 
@@ -128,9 +92,8 @@ static void MX_LPUART1_UART_Init(void);
 static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
-static void Robot_InitSensorTestState(void) __attribute__((unused));
-static void Robot_RequestSensorValues(void) __attribute__((unused));
 static void Robot_PrintPose(uint32_t now_ms);
+static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
 static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms);
 static Robot_Pose2D Robot_GetPoseSnapshot(void);
@@ -205,6 +168,7 @@ int main(void)
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
   uint32_t next_pose_print_ms = HAL_GetTick() + ROBOT_POSE_PRINT_PERIOD_MS;
+  uint32_t next_sensor_test_ms = HAL_GetTick() + ROBOT_SENSOR_TEST_PERIOD_MS;
 
   /* USER CODE END 2 */
 
@@ -219,6 +183,13 @@ int main(void)
     if (Robot_TimeReached(now_ms, next_pose_print_ms)) {
       next_pose_print_ms = now_ms + ROBOT_POSE_PRINT_PERIOD_MS;
       Robot_PrintPose(now_ms);
+    }
+
+    if (Robot_TimeReached(now_ms, next_sensor_test_ms)) {
+      RobotControl_SensorSample sample;
+      (void)RobotControl_ReadSensorSampleBlocking(&sample, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
+      Robot_PrintSensorSample(&sample);
+      next_sensor_test_ms = HAL_GetTick() + ROBOT_SENSOR_TEST_PERIOD_MS;
     }
   }
   /* USER CODE END 3 */
@@ -711,62 +682,6 @@ static void Robot_SendStartCommandToRemoteNodes(void)
   }
 }
 
-static void Robot_InitSensorTestState(void)
-{
-  for (uint8_t i = 0; i < 3u; i++) {
-    g_sensor_tsd.valid[i] = false;
-    g_sensor_tsd.rpc_result[i] = CANRPC_RES_INVALID;
-    g_sensor_tsd.distance_mm[i] = 0u;
-  }
-  g_sensor_color.rpc_result = CANRPC_RES_INVALID;
-}
-
-static void Robot_RequestSensorValues(void)
-{
-  int tsd_handle[3] = {-1, -1, -1};
-  int color_handle = -1;
-  uint32_t wait_mask = 0u;
-
-  for (uint8_t ch = 0; ch < 3u; ch++) {
-    tsd_handle[ch] = canrpc_call(NODE_SENSOR, CMD_TSD_READ, (int32_t)ch);
-    if (tsd_handle[ch] >= 0) {
-      wait_mask |= CANRPC_H(tsd_handle[ch]);
-    } else {
-      g_sensor_tsd.valid[ch] = false;
-      g_sensor_tsd.rpc_result[ch] = CANRPC_RES_BUSY;
-    }
-  }
-
-  color_handle = canrpc_call(NODE_SENSOR, CMD_COLOR_MEASURE, SENSOR_COLOR_ARG(0u, 1u, 0u));
-  if (color_handle >= 0) {
-    wait_mask |= CANRPC_H(color_handle);
-  } else {
-    g_sensor_color.rpc_result = CANRPC_RES_BUSY;
-  }
-
-  if (wait_mask != 0u) {
-    (void)canrpc_wait(wait_mask, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
-  }
-
-  for (uint8_t ch = 0; ch < 3u; ch++) {
-    if (tsd_handle[ch] < 0) {
-      continue;
-    }
-
-    uint8_t result = canrpc_result(tsd_handle[ch]);
-    g_sensor_tsd.rpc_result[ch] = result;
-    g_sensor_tsd.valid[ch] = (result == CANRPC_OK);
-    if (g_sensor_tsd.valid[ch]) {
-      g_sensor_tsd.distance_mm[ch] = (uint16_t)canrpc_ret(tsd_handle[ch]);
-      g_sensor_tsd.rx_t_ms = HAL_GetTick();
-    }
-  }
-
-  if (color_handle >= 0) {
-    g_sensor_color.rpc_result = canrpc_result(color_handle);
-  }
-}
-
 static void Robot_PrintPose(uint32_t now_ms)
 {
   Robot_Pose2D pose = Robot_GetPoseSnapshot();
@@ -783,8 +698,46 @@ static void Robot_PrintPose(uint32_t now_ms)
          (long)pose.h_mrad);
 }
 
+static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
+{
+  const RobotControl_Tsd10 *tsd = &sample->tsd;
+  const RobotControl_ColorRaw *color = &sample->color;
+  uint32_t now_ms = HAL_GetTick();
+  uint32_t color_age_ms = color->valid ? (uint32_t)(now_ms - color->rx_t_ms) : 0u;
+
+  printf("tsd10[status=%d ch0=%u(valid=%u res=0x%02x) ch1=%u(valid=%u res=0x%02x) ch2=%u(valid=%u res=0x%02x)]\r\n",
+         sample->tsd_status,
+         (unsigned int)tsd->distance_mm[0],
+         tsd->valid[0] ? 1u : 0u,
+         (unsigned int)tsd->rpc_result[0],
+         (unsigned int)tsd->distance_mm[1],
+         tsd->valid[1] ? 1u : 0u,
+         (unsigned int)tsd->rpc_result[1],
+         (unsigned int)tsd->distance_mm[2],
+         tsd->valid[2] ? 1u : 0u,
+         (unsigned int)tsd->rpc_result[2]);
+
+  printf("color[status=%d valid=%u res=0x%02x seq=%u sensor_t=%lums age=%lums c=%u r=%u g=%u b=%u atime=0x%02x gain=%u led=%ums flags=0x%02x]\r\n",
+         sample->color_status,
+         color->valid ? 1u : 0u,
+         (unsigned int)color->rpc_result,
+         (unsigned int)color->seq,
+         (unsigned long)color->sensor_t_ms,
+         (unsigned long)color_age_ms,
+         (unsigned int)color->clear,
+         (unsigned int)color->red,
+         (unsigned int)color->green,
+         (unsigned int)color->blue,
+         (unsigned int)color->atime,
+         (unsigned int)color->gain,
+         (unsigned int)color->led_on_ms,
+         (unsigned int)color->flags);
+}
+
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
 {
+  RobotControl_OnCanrpcPublish(node, topic, data, len);
+
   if (node != NODE_SENSOR || topic != TOPIC_POSE2D || data == NULL || len < 19u) {
     return;
   }
