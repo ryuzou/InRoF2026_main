@@ -45,7 +45,6 @@ typedef struct {
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
-#define ROBOT_POSE_SET_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_COLOR_READ_TIMEOUT_MS  1000u
 #define ROBOT_POSITION_SQUARE_SIDE_MM  500.0f
 #define ROBOT_INITIAL_POSE_X_MM        250
@@ -90,8 +89,6 @@ static void MX_LPUART1_UART_Init(void);
 static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
-static void Robot_SetCurrentPose(int32_t x_mm, int32_t y_mm, int32_t h_mrad);
-static void Robot_CallSensorCommandOrError(uint8_t cmd, int32_t arg);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
 static float Robot_PoseHeadingToNodeRad(int32_t h_mrad);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
@@ -178,69 +175,38 @@ int main(void)
   while (1)
   {
 
-    Robot_SetCurrentPose(
+    RobotControl_SetCurrentPose(
         250,
         -250,
         0
     );
 
+    //Calibrate RP1
+
     (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, NULL);
     Sequence_WaitForRobotCommand();
+    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);  //Free ball
+    HAL_Delay(500);
+
     (void)RobotControl_IssueMoveToPose_mm_deg(880, 162.5, 90);
     Board_DCMotorRackOpenUntilLimit();
     Sequence_WaitForRobotCommand();
     Sequence_CollectBalls();
     Sequence_PlaceStoredBalls();
+
     (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, 90);
     Board_DCMotorRackOpenUntilLimit();
     Sequence_WaitForRobotCommand();
     Sequence_CollectBalls();
-    (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, 0);
+    Sequence_IssueMoveToRP2();
     Sequence_WaitForRobotCommand();
+    // Caliblate RP2
     Sequence_PlaceStoredBalls();
 
     Sequence_IssueMoveToRP2();
     Board_DCMotorRackOpenUntilLimit();
     Sequence_WaitForRobotCommand();
-    while (1){}
-
-
-
-    (void)RobotControl_IssueMoveToPose_mm_deg(250.0f, 550.0f, NULL);
-    while (!RobotControl_IsCommandComplete()) {}
-    (void)RobotControl_IssueMoveToPose_mm_deg(500.0f, 550.0f, NULL);
-    while (!RobotControl_IsCommandComplete()) {}
-    while (1){}
-
-    (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, 90.0f);
-    Board_DCMotorRackCloseUntilLimit();
-    while (!RobotControl_IsCommandComplete()) {}
-    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-    (void)RobotControl_IssueMoveToPose_mm_deg(880.0f, 250.0f, 90.0f);
-    Board_DCMotorRackOpenUntilLimit();
-    while (!RobotControl_IsCommandComplete()) {}
-    Board_DCMotorSwingLowerUntilLimit();
-    Board_DCMotorRackCloseUntilLimit();
-    Board_DCMotorSwingRaiseUntilLimit();
-
-    (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, 90.0f);
-    Board_DCMotorRackOpenUntilLimit();
-    while (!RobotControl_IsCommandComplete()) {}
-    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-    (void)RobotControl_IssueMoveToPose_mm_deg(1330.0f, 250.0f, 90.0f);
-    Board_DCMotorSwingLowerUntilLimit();
-    while (!RobotControl_IsCommandComplete()) {}
-    Board_DCMotorRackCloseUntilLimit();
-    Board_DCMotorSwingRaiseUntilLimit();
-
-
-    (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, 90.0f);
-    Board_DCMotorRackOpenUntilLimit();
-    while (!RobotControl_IsCommandComplete()) {}
-    (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-
-
+    // Caliblate RP2
 
     while (1){} //stop loop
   }
@@ -730,30 +696,6 @@ static void Robot_SendStartCommandToRemoteNodes(void)
     volatile uint8_t servo_result = canrpc_result(servo_handle);
     (void)sensor_result;
     (void)servo_result;
-    Error_Handler();
-  }
-}
-
-static void Robot_SetCurrentPose(int32_t x_mm, int32_t y_mm, int32_t h_mrad)
-{
-  Robot_CallSensorCommandOrError(CMD_POSE_STAGE_X_MM, -y_mm);
-  Robot_CallSensorCommandOrError(CMD_POSE_STAGE_Y_MM, x_mm);
-  Robot_CallSensorCommandOrError(CMD_POSE_STAGE_H_MRAD, -h_mrad);
-  Robot_CallSensorCommandOrError(CMD_POSE_SET_CURRENT, 0);
-
-  RobotControl_UpdatePose2D(
-      0u,
-      board_millis(),
-      x_mm,
-      y_mm,
-      (float)h_mrad * 0.001f,
-      0u
-  );
-}
-
-static void Robot_CallSensorCommandOrError(uint8_t cmd, int32_t arg)
-{
-  if (canrpc_call_wait(NODE_SENSOR, cmd, arg, ROBOT_POSE_SET_CANRPC_TIMEOUT_MS) != 0) {
     Error_Handler();
   }
 }

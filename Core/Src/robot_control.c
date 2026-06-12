@@ -4,6 +4,7 @@
 #include "board.h"
 #include "canrpc.h"
 #include "main.h"
+#include "robot_can.h"
 
 #include <math.h>
 #include <string.h>
@@ -98,6 +99,10 @@
 #define ROBOT_CONTROL_TURN_TIMEOUT_MS  8000u
 #endif
 
+#ifndef ROBOT_CONTROL_POSE_SET_CANRPC_TIMEOUT_MS
+#define ROBOT_CONTROL_POSE_SET_CANRPC_TIMEOUT_MS  1000u
+#endif
+
 typedef enum {
   ROBOT_CONTROL_STATE_IDLE = 0,
   ROBOT_CONTROL_STATE_GO,
@@ -135,6 +140,7 @@ static uint32_t RobotControl_EnterCritical(void);
 static void RobotControl_ExitCritical(uint32_t primask);
 static Robot_Pose2D RobotControl_PoseSnapshotLocal(void);
 static bool RobotControl_PoseIsFresh(const Robot_Pose2D *pose, uint32_t now_ms);
+static void RobotControl_CallSensorCommandOrError(uint8_t cmd, int32_t arg);
 static bool RobotControl_BuildMoveCommand(
     const Robot_Pose2D *pose,
     float start_x_mm,
@@ -214,6 +220,42 @@ void RobotControl_UpdatePose2D(
   g_sensor_pose.valid = true;
 
   RobotControl_ExitCritical(primask);
+}
+
+void RobotControl_SetCurrentPoseOptional(
+    RobotControl_OptionalInt32 x_arg,
+    RobotControl_OptionalInt32 y_arg,
+    RobotControl_OptionalInt32 h_arg
+)
+{
+  Robot_Pose2D pose = {0};
+  bool needs_current_pose = !x_arg.has_value || !y_arg.has_value || !h_arg.has_value;
+  if (needs_current_pose) {
+    pose = RobotControl_PoseSnapshotLocal();
+    if (!pose.valid) {
+      Error_Handler();
+    }
+  }
+
+  int32_t x_mm = x_arg.has_value ? x_arg.value : pose.x_mm;
+  int32_t y_mm = y_arg.has_value ? y_arg.value : pose.y_mm;
+  int32_t h_mrad = h_arg.has_value
+      ? h_arg.value
+      : RobotControl_RoundToI32(pose.h_rad * 1000.0f);
+
+  RobotControl_CallSensorCommandOrError(CMD_POSE_STAGE_X_MM, -y_mm);
+  RobotControl_CallSensorCommandOrError(CMD_POSE_STAGE_Y_MM, x_mm);
+  RobotControl_CallSensorCommandOrError(CMD_POSE_STAGE_H_MRAD, -h_mrad);
+  RobotControl_CallSensorCommandOrError(CMD_POSE_SET_CURRENT, 0);
+
+  RobotControl_UpdatePose2D(
+      0u,
+      board_millis(),
+      x_mm,
+      y_mm,
+      (float)h_mrad * 0.001f,
+      0u
+  );
 }
 
 bool RobotControl_GetPoseSnapshot(Robot_Pose2D *out)
@@ -521,6 +563,13 @@ static bool RobotControl_PoseIsFresh(const Robot_Pose2D *pose, uint32_t now_ms)
   }
 
   return (uint32_t)(now_ms - pose->rx_t_ms) <= ROBOT_CONTROL_POSE_STALE_MS;
+}
+
+static void RobotControl_CallSensorCommandOrError(uint8_t cmd, int32_t arg)
+{
+  if (canrpc_call_wait(NODE_SENSOR, cmd, arg, ROBOT_CONTROL_POSE_SET_CANRPC_TIMEOUT_MS) != 0) {
+    Error_Handler();
+  }
 }
 
 static bool RobotControl_BuildMoveCommand(
