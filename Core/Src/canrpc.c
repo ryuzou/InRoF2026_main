@@ -20,14 +20,14 @@ typedef enum {
 } slot_state_t;
 
 typedef struct {
-    slot_state_t state;
+    volatile slot_state_t state;
     uint8_t node;
     uint8_t seq;
     uint8_t cmd;
     uint8_t retry;
-    uint8_t result;
+    volatile uint8_t result;
     int32_t arg;
-    int32_t ret;
+    volatile int32_t ret;
     uint32_t t0_ms;
 } slot_t;
 
@@ -39,7 +39,7 @@ typedef enum {
 } txn_state_t;
 
 typedef struct {
-    txn_state_t state;
+    volatile txn_state_t state;
     uint8_t seq;
     uint8_t cmd;
     bool done_sent;
@@ -68,7 +68,7 @@ static uint8_t g_handler_count;
 static volatile uint8_t g_pub_head;
 static volatile uint8_t g_pub_tail;
 static pub_msg_t g_pubq[CANRPC_PUB_QUEUE];
-static uint32_t g_pub_drop;
+static volatile uint32_t g_pub_drop;
 static canrpc_pub_cb_t g_pub_cb;
 
 static void put_i32_le_local(uint8_t *p, int32_t v)
@@ -444,7 +444,6 @@ int canrpc_call(uint8_t node, uint8_t cmd, int32_t arg)
     }
 
     slot_t *s = &g_slot[h];
-    s->state = SLOT_WAIT_ACK;
     s->node = node;
     s->seq = g_seq;
     s->cmd = cmd;
@@ -453,6 +452,7 @@ int canrpc_call(uint8_t node, uint8_t cmd, int32_t arg)
     s->arg = arg;
     s->ret = 0;
     s->t0_ms = board_millis();
+    s->state = SLOT_WAIT_ACK;
 
     (void)tx_cmd(node, s->seq, cmd, arg);
     return h;

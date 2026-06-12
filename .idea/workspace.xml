@@ -35,12 +35,10 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="debug">
+    <list default="true" id="f6b7273d-8d66-461d-b7a6-5330547d04b3" name="変更" comment="debugfix??? pose canrpc">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Inc/board.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/board.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Inc/robot_can.h" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Inc/robot_can.h" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Src/board.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/board.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Src/main.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/main.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Core/Src/canrpc.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/canrpc.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Core/Src/stm32g4xx_hal_msp.c" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Src/stm32g4xx_hal_msp.c" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -73,6 +71,7 @@
   <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug - Debug" />
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="Um8G8DSi" />
@@ -172,7 +171,7 @@
     "cidr.known.project.marker": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "95daa80c",
+    "git-widget-placeholder": "0900f26c",
     "junie.onboarding.icon.badge.shown": "true",
     "last_opened_file_path": "Z:/Works/Robots/Software/InRoF2026/InRoF2026_main",
     "node.js.detected.package.eslint": "true",
@@ -222,7 +221,7 @@
       <workItem from="1780851928773" duration="28617000" />
       <workItem from="1781172255216" duration="20899000" />
       <workItem from="1781205378535" duration="2487000" />
-      <workItem from="1781210845348" duration="4059000" />
+      <workItem from="1781210845348" duration="7113000" />
     </task>
     <task id="LOCAL-00001" summary="initial commit">
       <option name="closed" value="true" />
@@ -320,7 +319,15 @@
       <option name="project" value="LOCAL" />
       <updated>1781203214720</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="debugfix??? pose canrpc">
+      <option name="closed" value="true" />
+      <created>1781230097448</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1781230097448</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -357,7 +364,8 @@
     <MESSAGE value="Add rack motor control and limit switch handling" />
     <MESSAGE value="Add CANRPC implementation and integrate master startup sequence&#10;&#10;- Implement CANRPC core functionality, including command handling, publishing, callbacks, and transaction management.&#10;- Add CANRPC initialization, polling, and message transmission support to the platform.&#10;- Introduce master node startup sequence with remote node synchronization using CANRPC `CMD_SYSTEM_START`.&#10;- Update FDCAN configuration and hardware abstraction to support CANRPC operations.&#10;- Document CANRPC command handling and node/network configuration." />
     <MESSAGE value="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add sensor data polling, CANRPC integration, and real-time diagnostics&#10;&#10;- Implement periodic sensor data requests and processing (TSD, color sensors).&#10;- Add CANRPC command usage for remote sensor interaction.&#10;- Introduce real-time sensor diagnostics and debugging output via UART for pose, TSD, and color data.&#10;- Update related CANRPC topics and documentation." />
+    <MESSAGE value="debugfix??? pose canrpc" />
+    <option name="LAST_COMMIT_MESSAGE" value="debugfix??? pose canrpc" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
