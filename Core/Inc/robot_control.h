@@ -48,6 +48,11 @@ RobotControl_CommandResult RobotControl_IssueMoveSegment_mm(
     float end_x_mm,
     float end_y_mm
 );
+RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
+    float target_x_mm,
+    float target_y_mm,
+    float target_heading_deg
+);
 RobotControl_CommandResult RobotControl_IssueTurnTo_rad(float target_heading_rad);
 RobotControl_CommandResult RobotControl_IssueTurnTo_deg(float target_heading_deg);
 bool RobotControl_IsCommandComplete(void);

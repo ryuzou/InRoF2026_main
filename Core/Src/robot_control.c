@@ -78,6 +78,10 @@
 #define ROBOT_CONTROL_LAT_TOL_MM  10.0f
 #endif
 
+#ifndef ROBOT_CONTROL_MOVE_TO_POSE_LAT_MAX_MM
+#define ROBOT_CONTROL_MOVE_TO_POSE_LAT_MAX_MM  50.0f
+#endif
+
 #ifndef ROBOT_CONTROL_POSE_STALE_MS
 #define ROBOT_CONTROL_POSE_STALE_MS  500u
 #endif
@@ -98,6 +102,7 @@ typedef enum {
   ROBOT_CONTROL_STATE_IDLE = 0,
   ROBOT_CONTROL_STATE_GO,
   ROBOT_CONTROL_STATE_TURN_TO_LINE,
+  ROBOT_CONTROL_STATE_TURN_TO_MOVE_LINE,
   ROBOT_CONTROL_STATE_TURN_ONLY,
 } RobotControl_State;
 
@@ -112,6 +117,7 @@ typedef struct {
   float len;
   float k1;
   float k2;
+  bool has_final_turn;
 } RobotControl_Command;
 
 static volatile Robot_Pose2D g_sensor_pose;
@@ -137,7 +143,15 @@ static bool RobotControl_BuildMoveCommand(
     float end_y_mm,
     RobotControl_Command *out
 );
+static bool RobotControl_BuildPointTurnMoveCommand(
+    const Robot_Pose2D *pose,
+    float end_x_mm,
+    float end_y_mm,
+    float final_heading_rad,
+    RobotControl_Command *out
+);
 static uint32_t RobotControl_MoveTimeoutMs(float len_mm);
+static void RobotControl_BeginFinalTurn(float target_heading_rad);
 static RobotControl_Command RobotControl_CommandSnapshot(void);
 static void RobotControl_ControlStep(void);
 static float RobotControl_TurnVelocityForError(float th_error);
@@ -253,6 +267,90 @@ RobotControl_CommandResult RobotControl_IssueMoveSegment_mm(
   g_command_timeout_ms = RobotControl_MoveTimeoutMs(next_command.len);
   g_command_result = ROBOT_CONTROL_COMMAND_RUNNING;
   g_state = ROBOT_CONTROL_STATE_GO;
+  RobotControl_ExitCritical(primask);
+
+  return ROBOT_CONTROL_COMMAND_OK;
+}
+
+RobotControl_CommandResult RobotControl_IssueMoveToPose_mm_deg(
+    float target_x_mm,
+    float target_y_mm,
+    float target_heading_deg
+)
+{
+  if (g_state != ROBOT_CONTROL_STATE_IDLE) {
+    return ROBOT_CONTROL_COMMAND_BUSY;
+  }
+
+  Robot_Pose2D pose = RobotControl_PoseSnapshotLocal();
+  if (!RobotControl_PoseIsFresh(&pose, board_millis())) {
+    return ROBOT_CONTROL_COMMAND_NO_POSE;
+  }
+
+  float target_heading_rad = RobotControl_WrapPi(
+      target_heading_deg * ROBOT_CONTROL_PI / 180.0f
+  );
+  float dx = target_x_mm - (float)pose.x_mm;
+  float dy = target_y_mm - (float)pose.y_mm;
+  float distance = sqrtf(dx * dx + dy * dy);
+  if (distance < ROBOT_CONTROL_POS_TOL_MM) {
+    return RobotControl_IssueTurnTo_rad(target_heading_rad);
+  }
+
+  float hx = RobotControl_HeadingUnitX(pose.h_rad);
+  float hy = RobotControl_HeadingUnitY(pose.h_rad);
+  float d_fwd = dx * hx + dy * hy;
+  float d_lat = dx * hy - dy * hx;
+
+  RobotControl_Command next_command;
+  RobotControl_State next_state = ROBOT_CONTROL_STATE_GO;
+  bool use_current_heading =
+      (RobotControl_AbsFloat(d_lat) <= ROBOT_CONTROL_MOVE_TO_POSE_LAT_MAX_MM)
+      && (RobotControl_AbsFloat(d_fwd) >= ROBOT_CONTROL_D_FWD_MIN_MM)
+      && RobotControl_BuildMoveCommand(
+          &pose,
+          (float)pose.x_mm,
+          (float)pose.y_mm,
+          target_x_mm,
+          target_y_mm,
+          &next_command
+      );
+
+  if (!use_current_heading) {
+    if (!RobotControl_BuildPointTurnMoveCommand(
+        &pose,
+        target_x_mm,
+        target_y_mm,
+        target_heading_rad,
+        &next_command
+    )) {
+      return ROBOT_CONTROL_COMMAND_REJECTED;
+    }
+
+    if (RobotControl_AbsFloat(RobotControl_WrapPi(next_command.th_line - pose.h_rad))
+        >= ROBOT_CONTROL_TH_TOL_RAD) {
+      next_state = ROBOT_CONTROL_STATE_TURN_TO_MOVE_LINE;
+    }
+  }
+
+  next_command.has_final_turn = true;
+  next_command.target_th = target_heading_rad;
+
+  uint32_t primask = RobotControl_EnterCritical();
+  if (g_state != ROBOT_CONTROL_STATE_IDLE) {
+    RobotControl_ExitCritical(primask);
+    return ROBOT_CONTROL_COMMAND_BUSY;
+  }
+
+  g_command = next_command;
+  g_linear_velocity_mm_s = 0.0f;
+  g_angular_velocity_rad_s = 0.0f;
+  g_command_start_ms = board_millis();
+  g_command_timeout_ms = (next_state == ROBOT_CONTROL_STATE_TURN_TO_MOVE_LINE)
+      ? ROBOT_CONTROL_TURN_TIMEOUT_MS
+      : RobotControl_MoveTimeoutMs(next_command.len);
+  g_command_result = ROBOT_CONTROL_COMMAND_RUNNING;
+  g_state = next_state;
   RobotControl_ExitCritical(primask);
 
   return ROBOT_CONTROL_COMMAND_OK;
@@ -443,6 +541,46 @@ static bool RobotControl_BuildMoveCommand(
   return true;
 }
 
+static bool RobotControl_BuildPointTurnMoveCommand(
+    const Robot_Pose2D *pose,
+    float end_x_mm,
+    float end_y_mm,
+    float final_heading_rad,
+    RobotControl_Command *out
+)
+{
+  if ((pose == NULL) || (out == NULL)) {
+    return false;
+  }
+
+  float dx = end_x_mm - (float)pose->x_mm;
+  float dy = end_y_mm - (float)pose->y_mm;
+  float len = sqrtf(dx * dx + dy * dy);
+  if (len < ROBOT_CONTROL_D_FWD_MIN_MM) {
+    return false;
+  }
+
+  float th_line = RobotControl_WrapPi(atan2f(dx, dy));
+  float ux = RobotControl_HeadingUnitX(th_line);
+  float uy = RobotControl_HeadingUnitY(th_line);
+  float lam_lo = 5.0f / (ROBOT_CONTROL_ALPHA * len);
+  float lam = RobotControl_MaxFloat(ROBOT_CONTROL_LAMBDA_DEFAULT_INV_MM, lam_lo);
+
+  memset(out, 0, sizeof(*out));
+  out->ux = ux;
+  out->uy = uy;
+  out->direction = 1.0f;
+  out->th_line = th_line;
+  out->target_th = RobotControl_WrapPi(final_heading_rad);
+  out->len = len;
+  out->ax = end_x_mm - len * ux;
+  out->ay = end_y_mm - len * uy;
+  out->k1 = lam * lam;
+  out->k2 = 2.0f * lam;
+
+  return true;
+}
+
 static uint32_t RobotControl_MoveTimeoutMs(float len_mm)
 {
   if (len_mm < 0.0f) {
@@ -451,6 +589,17 @@ static uint32_t RobotControl_MoveTimeoutMs(float len_mm)
 
   return ROBOT_CONTROL_MOVE_TIMEOUT_MARGIN_MS
       + (uint32_t)(len_mm * ROBOT_CONTROL_MOVE_TIMEOUT_MS_PER_MM + 0.5f);
+}
+
+static void RobotControl_BeginFinalTurn(float target_heading_rad)
+{
+  g_command.target_th = RobotControl_WrapPi(target_heading_rad);
+  g_command.has_final_turn = false;
+  g_linear_velocity_mm_s = 0.0f;
+  g_angular_velocity_rad_s = 0.0f;
+  g_command_start_ms = board_millis();
+  g_command_timeout_ms = ROBOT_CONTROL_TURN_TIMEOUT_MS;
+  g_state = ROBOT_CONTROL_STATE_TURN_ONLY;
 }
 
 static RobotControl_Command RobotControl_CommandSnapshot(void)
@@ -467,6 +616,7 @@ static RobotControl_Command RobotControl_CommandSnapshot(void)
   command.len = g_command.len;
   command.k1 = g_command.k1;
   command.k2 = g_command.k2;
+  command.has_final_turn = g_command.has_final_turn;
 
   return command;
 }
@@ -537,21 +687,35 @@ static void RobotControl_ControlStep(void)
     if ((d_rem < ROBOT_CONTROL_POS_TOL_MM) || (s > command.len)) {
       v = 0.0f;
       w = 0.0f;
-      RobotControl_FinishCommand(
+      RobotControl_CommandResult move_result =
           (RobotControl_AbsFloat(e) < ROBOT_CONTROL_LAT_TOL_MM)
               ? ROBOT_CONTROL_COMMAND_OK
-              : ROBOT_CONTROL_COMMAND_FAILED
-      );
+              : ROBOT_CONTROL_COMMAND_FAILED;
+      if ((move_result == ROBOT_CONTROL_COMMAND_OK) && command.has_final_turn) {
+        float final_error = RobotControl_WrapPi(command.target_th - pose.h_rad);
+        if (RobotControl_AbsFloat(final_error) < ROBOT_CONTROL_TH_TOL_RAD) {
+          RobotControl_FinishCommand(ROBOT_CONTROL_COMMAND_OK);
+        } else {
+          RobotControl_BeginFinalTurn(command.target_th);
+        }
+      } else {
+        RobotControl_FinishCommand(move_result);
+      }
       RobotControl_ApplyVelocity(v, w);
       return;
     }
-  } else if (state == ROBOT_CONTROL_STATE_TURN_TO_LINE) {
+  } else if ((state == ROBOT_CONTROL_STATE_TURN_TO_LINE)
+      || (state == ROBOT_CONTROL_STATE_TURN_TO_MOVE_LINE)) {
     float th_error = RobotControl_WrapPi(pose.h_rad - command.th_line);
     w = RobotControl_TurnVelocityForError(-th_error);
 
     if (RobotControl_AbsFloat(th_error) < ROBOT_CONTROL_TH_TOL_RAD) {
       w = 0.0f;
       g_angular_velocity_rad_s = 0.0f;
+      if (state == ROBOT_CONTROL_STATE_TURN_TO_MOVE_LINE) {
+        g_command_start_ms = now_ms;
+        g_command_timeout_ms = RobotControl_MoveTimeoutMs(command.len);
+      }
       state = ROBOT_CONTROL_STATE_GO;
     }
   } else if (state == ROBOT_CONTROL_STATE_TURN_ONLY) {

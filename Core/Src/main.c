@@ -26,7 +26,6 @@
 #include "canrpc.h"
 #include "robot_can.h"
 #include "robot_control.h"
-#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -45,7 +44,6 @@ typedef struct {
 /* USER CODE BEGIN PD */
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
 #define ROBOT_POSE_SET_CANRPC_TIMEOUT_MS  1000u
-#define ROBOT_POSITION_PRINT_PERIOD_MS 200u
 #define ROBOT_POSITION_SQUARE_SIDE_MM  500.0f
 #define ROBOT_INITIAL_POSE_X_MM        250
 #define ROBOT_INITIAL_POSE_Y_MM        250
@@ -91,16 +89,8 @@ static void MX_TIM7_Init(void);
 static void Robot_SendStartCommandToRemoteNodes(void);
 static void Robot_SetCurrentPose(int32_t x_mm, int32_t y_mm, int32_t h_mrad);
 static void Robot_CallSensorCommandOrError(uint8_t cmd, int32_t arg);
-static void Robot_PrintCurrentAndTargetPose(
-    float target_x_mm,
-    float target_y_mm,
-    float target_h_deg
-);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
 static float Robot_PoseHeadingToNodeRad(int32_t h_mrad);
-static int32_t Robot_RadToMdegForPrint(float rad);
-static int32_t Robot_DegToMdegForPrint(float deg);
-static uint32_t Robot_AbsI32ToU32(int32_t value);
 static uint16_t Robot_GetU16Le(const uint8_t *p);
 static uint32_t Robot_GetU32Le(const uint8_t *p);
 static int32_t Robot_GetI32Le(const uint8_t *p);
@@ -195,71 +185,36 @@ int main(void)
     );
 
 
-    Robot_Pose2D pose;
-    while (!RobotControl_GetPoseSnapshot(&pose) || !pose.valid) {
-      // Robot_PrintCurrentAndTargetPose(square[i].x_mm, square[i].y_mm, square[i].move_h_deg);
-      HAL_Delay(ROBOT_POSITION_PRINT_PERIOD_MS);
-    }
-    (void)RobotControl_IssueMoveSegment_mm(
-        (float)pose.x_mm,
-        (float)pose.y_mm,
-        250,
-        550
-    );
+    (void)RobotControl_IssueMoveToPose_mm_deg(250.0f, 550.0f, 0.0f);
+    while (!RobotControl_IsCommandComplete()) {}
+    (void)RobotControl_IssueMoveToPose_mm_deg(500.0f, 550.0f, 0.0f);
     while (!RobotControl_IsCommandComplete()) {}
     while (1){}
 
-    (void)RobotControl_IssueMoveSegment_mm(
-        (float)pose.x_mm,
-        (float)pose.y_mm,
-        300,
-        250
-    );
+    (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, 90.0f);
     Board_DCMotorRackCloseUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
-    (void)RobotControl_IssueTurnTo_deg(90);
-    while (!RobotControl_IsCommandComplete()) {}
     (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
-    (void)RobotControl_IssueMoveSegment_mm(
-        (float)pose.x_mm,
-        (float)pose.y_mm,
-        880,
-        250
-    );
+    (void)RobotControl_IssueMoveToPose_mm_deg(880.0f, 250.0f, 90.0f);
     Board_DCMotorRackOpenUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
     Board_DCMotorSwingLowerUntilLimit();
     Board_DCMotorRackCloseUntilLimit();
     Board_DCMotorSwingRaiseUntilLimit();
 
-    (void)RobotControl_IssueMoveSegment_mm(
-      (float)pose.x_mm,
-      (float)pose.y_mm,
-      300,
-      250
-  );
+    (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, 90.0f);
     Board_DCMotorRackOpenUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
     (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
 
-    (void)RobotControl_IssueMoveSegment_mm(
-      (float)pose.x_mm,
-      (float)pose.y_mm,
-      1330,
-      250
-  );
+    (void)RobotControl_IssueMoveToPose_mm_deg(1330.0f, 250.0f, 90.0f);
     Board_DCMotorSwingLowerUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
     Board_DCMotorRackCloseUntilLimit();
     Board_DCMotorSwingRaiseUntilLimit();
 
 
-    (void)RobotControl_IssueMoveSegment_mm(
-      (float)pose.x_mm,
-      (float)pose.y_mm,
-      300,
-      250
-  );
+    (void)RobotControl_IssueMoveToPose_mm_deg(300.0f, 250.0f, 90.0f);
     Board_DCMotorRackOpenUntilLimit();
     while (!RobotControl_IsCommandComplete()) {}
     (void)Algorithm_ServoOpenCloseBlocking(NULL, 100);
@@ -782,33 +737,6 @@ static void Robot_CallSensorCommandOrError(uint8_t cmd, int32_t arg)
   }
 }
 
-static void Robot_PrintCurrentAndTargetPose(
-    float target_x_mm,
-    float target_y_mm,
-    float target_h_deg
-)
-{
-  Robot_Pose2D pose;
-  (void)RobotControl_GetPoseSnapshot(&pose);
-  int32_t current_h_mdeg = Robot_RadToMdegForPrint(pose.h_rad);
-  int32_t target_h_mdeg = Robot_DegToMdegForPrint(target_h_deg);
-  uint32_t current_h_abs_mdeg = Robot_AbsI32ToU32(current_h_mdeg);
-  uint32_t target_h_abs_mdeg = Robot_AbsI32ToU32(target_h_mdeg);
-
-  printf("current_pose[valid=%u x=%ld y=%ld h=%s%lu.%03ludeg] target_pose[x=%ld y=%ld h=%s%lu.%03ludeg]\r\n",
-         pose.valid ? 1u : 0u,
-         (long)pose.x_mm,
-         (long)pose.y_mm,
-         current_h_mdeg < 0 ? "-" : "",
-         (unsigned long)(current_h_abs_mdeg / 1000u),
-         (unsigned long)(current_h_abs_mdeg % 1000u),
-         (long)target_x_mm,
-         (long)target_y_mm,
-         target_h_mdeg < 0 ? "-" : "",
-         (unsigned long)(target_h_abs_mdeg / 1000u),
-         (unsigned long)(target_h_abs_mdeg % 1000u));
-}
-
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
 {
   Algorithm_SensorOnCanrpcPublish(node, topic, data, len);
@@ -833,22 +761,6 @@ static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *da
 static float Robot_PoseHeadingToNodeRad(int32_t h_mrad)
 {
   return -(float)h_mrad * 0.001f;
-}
-
-static int32_t Robot_RadToMdegForPrint(float rad)
-{
-  return Robot_DegToMdegForPrint(rad * 57.2957795130823208768f);
-}
-
-static int32_t Robot_DegToMdegForPrint(float deg)
-{
-  float h_mdeg = deg * 1000.0f;
-  return (int32_t)(h_mdeg >= 0.0f ? h_mdeg + 0.5f : h_mdeg - 0.5f);
-}
-
-static uint32_t Robot_AbsI32ToU32(int32_t value)
-{
-  return (value < 0) ? (uint32_t)(-(value + 1)) + 1u : (uint32_t)value;
 }
 
 static uint16_t Robot_GetU16Le(const uint8_t *p)
