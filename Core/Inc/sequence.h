@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 
+void Sequence_WaitForRobotCommand(void);
+void Sequence_IssueMoveToRP2(void);
+void Sequence_CollectBalls(void);
 void Sequence_PlaceStoredBalls(void);
 
 #ifdef __cplusplus

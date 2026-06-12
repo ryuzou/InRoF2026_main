@@ -3,6 +3,7 @@
 #include "algorithm.h"
 #include "main.h"
 #include "robot_control.h"
+#include "board.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -36,8 +37,14 @@
 #define SEQUENCE_YELLOW_DROP_Y_MM  900.0f
 #define SEQUENCE_BLUE_DROP_Y_MM    1550.0f
 
-static void Sequence_WaitForRobotCommand(void);
 static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm);
+
+void Sequence_CollectBalls(void) {
+  Board_DCMotorRackOpenUntilLimit();
+  Board_DCMotorSwingLowerUntilLimit();
+  Board_DCMotorRackCloseUntilLimit();
+  Board_DCMotorSwingRaiseUntilLimit();
+}
 
 void Sequence_PlaceStoredBalls(void)
 {
@@ -94,10 +101,14 @@ void Sequence_PlaceStoredBalls(void)
   Sequence_WaitForRobotCommand();
 }
 
-static void Sequence_WaitForRobotCommand(void)
+void Sequence_WaitForRobotCommand(void)
 {
   while (!RobotControl_IsCommandComplete()) {
   }
+}
+
+void Sequence_IssueMoveToRP2(void) {
+  (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, 0);
 }
 
 static bool Sequence_BallDropYMm(Algorithm_BallColor color, float *drop_y_mm)

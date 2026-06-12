@@ -177,29 +177,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-    // Algorithm_ColorDetection color_detection;
-    // Algorithm_ColorRaw color_raw;
-    // int color_status = Algorithm_ReadBallColorBlocking(
-    //     &color_detection,
-    //     &color_raw,
-    //     ROBOT_COLOR_READ_TIMEOUT_MS
-    // );
-    // if (color_status != 0 || color_detection.color == ALGORITHM_BALL_COLOR_NONE) {
-    //   printf("No colour\r\n");;
-    // } else {
-    //   if (color_detection.color == ALGORITHM_BALL_COLOR_RED) {
-    //     printf("Red\r\n");
-    //   } else if (color_detection.color == ALGORITHM_BALL_COLOR_YELLOW) {
-    //     printf("Yello\r\n");
-    //   } else if (color_detection.color == ALGORITHM_BALL_COLOR_BLUE) {
-    //     printf("Blue\r\n");
-    //   }
-    // }
-    // HAL_Delay(1000);
-    // continue;
 
     Robot_SetCurrentPose(
         250,
@@ -207,7 +184,24 @@ int main(void)
         0
     );
 
+    (void)RobotControl_IssueMoveToPose_mm_deg(300, 250, NULL);
+    Sequence_WaitForRobotCommand();
+    (void)RobotControl_IssueMoveToPose_mm_deg(880, 162.5, 90);
+    Board_DCMotorRackOpenUntilLimit();
+    Sequence_WaitForRobotCommand();
+    Sequence_CollectBalls();
     Sequence_PlaceStoredBalls();
+    (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, 90);
+    Board_DCMotorRackOpenUntilLimit();
+    Sequence_WaitForRobotCommand();
+    Sequence_CollectBalls();
+    (void)RobotControl_IssueMoveToPose_mm_deg(1340, 162.5, 0);
+    Sequence_WaitForRobotCommand();
+    Sequence_PlaceStoredBalls();
+
+    Sequence_IssueMoveToRP2();
+    Board_DCMotorRackOpenUntilLimit();
+    Sequence_WaitForRobotCommand();
     while (1){}
 
 
