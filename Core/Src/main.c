@@ -39,7 +39,6 @@
 /* USER CODE BEGIN PD */
 #define ROBOT_TEST_RACK_LIMIT_HOLD_MS  1000u
 #define ROBOT_START_CANRPC_TIMEOUT_MS  1000u
-#define ROBOT_POSE_PRINT_PERIOD_MS     1000u
 #define ROBOT_SENSOR_CANRPC_TIMEOUT_MS 1000u
 #define ROBOT_SENSOR_TEST_PERIOD_MS    1000u
 
@@ -94,9 +93,8 @@ static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 static void Robot_SendStartCommandToRemoteNodes(void);
 static void Robot_PrintPose(uint32_t now_ms);
-static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample);
+static void Robot_PrintSensorSample(const Algorithm_SensorSample *sample);
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len);
-static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms);
 static Robot_Pose2D Robot_GetPoseSnapshot(void);
 static float Robot_PoseHeadingToNodeRad(int32_t h_mrad_ccw);
 static int32_t Robot_RadToMradForPrint(float rad);
@@ -170,6 +168,7 @@ int main(void)
   }
   canrpc_set_pub_handler(Robot_OnCanrpcPublish);
   RobotControl_Init();
+  Algorithm_SensorInit();
   if (HAL_TIM_Base_Start_IT(&htim7) != HAL_OK) {
     Error_Handler();
   }
@@ -177,8 +176,6 @@ int main(void)
   Board_WaitForStartSwitchInterrupt();
   Robot_SendStartCommandToRemoteNodes();
   Board_StepperStopAll();
-  uint32_t next_pose_print_ms = HAL_GetTick() + ROBOT_POSE_PRINT_PERIOD_MS;
-  uint32_t next_sensor_test_ms = HAL_GetTick() + ROBOT_SENSOR_TEST_PERIOD_MS;
 
   /* USER CODE END 2 */
 
@@ -189,18 +186,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    uint32_t now_ms = HAL_GetTick();
-    if (Robot_TimeReached(now_ms, next_pose_print_ms)) {
-      next_pose_print_ms = now_ms + ROBOT_POSE_PRINT_PERIOD_MS;
-      Robot_PrintPose(now_ms);
-    }
-
-    if (Robot_TimeReached(now_ms, next_sensor_test_ms)) {
-      RobotControl_SensorSample sample;
-      (void)RobotControl_ReadSensorSampleBlocking(&sample, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
-      Robot_PrintSensorSample(&sample);
-      next_sensor_test_ms = HAL_GetTick() + ROBOT_SENSOR_TEST_PERIOD_MS;
-    }
+    Algorithm_SensorSample sample;
+    (void)Algorithm_ReadSensorSampleBlocking(&sample, ROBOT_SENSOR_CANRPC_TIMEOUT_MS);
+    Robot_PrintPose(HAL_GetTick());
+    Robot_PrintSensorSample(&sample);
+    HAL_Delay(ROBOT_SENSOR_TEST_PERIOD_MS);
   }
   /* USER CODE END 3 */
 }
@@ -712,10 +702,10 @@ static void Robot_PrintPose(uint32_t now_ms)
          (unsigned long)(h_abs_mrad % 1000u));
 }
 
-static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
+static void Robot_PrintSensorSample(const Algorithm_SensorSample *sample)
 {
-  const RobotControl_Tsd10 *tsd = &sample->tsd;
-  const RobotControl_ColorRaw *color = &sample->color;
+  const Algorithm_Tsd10 *tsd = &sample->tsd;
+  const Algorithm_ColorRaw *color = &sample->color;
   Algorithm_ColorDetection color_detection = Algorithm_DetectBallColorFromRgb(
       color->red,
       color->green,
@@ -760,7 +750,7 @@ static void Robot_PrintSensorSample(const RobotControl_SensorSample *sample)
 
 static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *data, uint8_t len)
 {
-  RobotControl_OnCanrpcPublish(node, topic, data, len);
+  Algorithm_SensorOnCanrpcPublish(node, topic, data, len);
 
   if (node != NODE_SENSOR || topic != TOPIC_POSE2D || data == NULL || len < 19u) {
     return;
@@ -774,11 +764,6 @@ static void Robot_OnCanrpcPublish(uint8_t node, uint8_t topic, const uint8_t *da
   g_sensor_pose.status_flags = Robot_GetU16Le(&data[17]);
   g_sensor_pose.rx_t_ms = HAL_GetTick();
   g_sensor_pose.valid = true;
-}
-
-static bool Robot_TimeReached(uint32_t now_ms, uint32_t deadline_ms)
-{
-  return (int32_t)(now_ms - deadline_ms) >= 0;
 }
 
 static Robot_Pose2D Robot_GetPoseSnapshot(void)
