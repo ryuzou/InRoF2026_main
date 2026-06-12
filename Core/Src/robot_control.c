@@ -111,7 +111,15 @@ int RobotControl_ReadColorRawBlocking(RobotControl_ColorRaw *out, uint32_t timeo
 
   uint32_t start_ms = board_millis();
   uint32_t deadline_ms = start_ms + timeout_ms;
-  int handle = canrpc_call(NODE_SENSOR, CMD_COLOR_MEASURE, SENSOR_COLOR_ARG(0u, 1u, 0u));
+  int handle = canrpc_call(
+      NODE_SENSOR,
+      CMD_COLOR_MEASURE,
+      SENSOR_COLOR_ARG(
+          ROBOT_CONTROL_COLOR_ATIME,
+          ROBOT_CONTROL_COLOR_GAIN,
+          ROBOT_CONTROL_COLOR_FLAGS
+      )
+  );
   if (handle < 0) {
     color.rpc_result = CANRPC_RES_BUSY;
     *out = color;

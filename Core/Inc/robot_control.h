@@ -10,6 +10,18 @@ extern "C" {
 
 #define ROBOT_CONTROL_TSD10_CHANNELS 3u
 
+#ifndef ROBOT_CONTROL_COLOR_ATIME
+#define ROBOT_CONTROL_COLOR_ATIME  0x80
+#endif
+
+#ifndef ROBOT_CONTROL_COLOR_GAIN
+#define ROBOT_CONTROL_COLOR_GAIN   1u
+#endif
+
+#ifndef ROBOT_CONTROL_COLOR_FLAGS
+#define ROBOT_CONTROL_COLOR_FLAGS  0u
+#endif
+
 typedef struct {
   bool valid[ROBOT_CONTROL_TSD10_CHANNELS];
   bool out_of_range[ROBOT_CONTROL_TSD10_CHANNELS];
