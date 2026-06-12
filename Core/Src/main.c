@@ -45,6 +45,7 @@
 #define ROBOT_INITIAL_POSE_X_MM        250
 #define ROBOT_INITIAL_POSE_Y_MM        250
 #define ROBOT_INITIAL_POSE_H_MRAD      0
+#define ROBOT_ENABLE_RP2_CALIBRATION   0
 
 #define TOPIC_POSE2D             0x10u
 
@@ -194,7 +195,9 @@ int main(void)
     Sequence_CollectBalls();
     Sequence_IssueMoveToRP2();
     Sequence_WaitForRobotCommand();
+#if ROBOT_ENABLE_RP2_CALIBRATION
     Sequence_CallibrateRP2();
+#endif
     Sequence_PlaceStoredBalls();
 
     static const struct {
@@ -223,7 +226,9 @@ int main(void)
       Sequence_CollectBalls();
       Sequence_IssueMoveToRP2();
       Sequence_WaitForRobotCommand();
+#if ROBOT_ENABLE_RP2_CALIBRATION
       Sequence_CallibrateRP2();
+#endif
       Sequence_PlaceStoredBalls();
     }
 
